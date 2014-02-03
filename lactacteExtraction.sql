@@ -1,6 +1,6 @@
 /*
 * Ikaro Silva & Marzyeh Ghassemi
-- Jan 28, 2014
+- Feb 2, 2014
 
 In this query we are using only patients whose first ICU stay service is
 of type CSRU, and who has at least 5 lactate measurements. The
@@ -26,6 +26,7 @@ minLact as(
       group by subject_id, hadm_id
       )
    where LactN > 5
+   and subject_id < 1000
 )
 --select * from minLact;-- where subject_id=12;
 , 
@@ -52,7 +53,7 @@ select *
 --  'cabg' (coronary bypass graft), IABP  (intra aortic balloon pump), RUAD (right ventricular assistance device), 
 --   LUAD  (left ventricular assistance device)
 dis_Cond as (
-  select s.subject_id, --category,
+  select s.subject_id, s.hadm_id, --category,
     case when (lower(text) like '%cabg%' or lower(text) like '%coronary bypass graft%') then 1 else 0 end as CABG,
     case when (lower(text) like '%iabp%' or lower(text) like '%intra-aortic balloon pump%') then 1 else 0 end as IABP,
     case when (lower(text) like '%rvad%' or lower(text) like '%right ventricular assistance device%') then 1 else 0 end as RVAD,
@@ -72,7 +73,7 @@ dis_Cond as (
 ChartedParams as (
   -- Group each c.itemid in meaninful category names
   -- also performin some metric conversion (temperature, etc...)
-  select s.subject_id, s.icustay_id, itemid, charttime, 
+  select s.subject_id, s.hadm_id, s.icustay_id, itemid, charttime, 
          case 
             when c.itemid in (211) then
                 'HR' 
@@ -82,7 +83,7 @@ ChartedParams as (
          c.value1num valuenum
     from cohort s,
          mimic2v26.chartevents c
-   where c.icustay_id = s.icustay_id
+   where c.icustay_id = s.icustay_id     
      and c.itemid in (
          211,
          52, 6702
@@ -100,6 +101,7 @@ UrineParams as (
     from cohort s,
          mimic2v26.ioevents c
    where c.subject_id = s.subject_id
+--     and c.hadm_id = s.hadm_id
      and c.itemid IN ( 651, 715, 55, 56, 57, 61, 65, 69, 85, 94, 96, 288, 405, 428, 473, 2042, 2068, 2111, 2119, 2130, 1922, 2810, 2859, 3053, 3462, 3519, 3175, 2366, 2463, 2507, 2510, 2592, 2676, 3966, 3987, 4132, 4253, 5927 )
      and c.volume is not null
 )
@@ -116,6 +118,7 @@ LabParams as (
     from cohort s,
          mimic2v26.labevents c
    where c.subject_id = s.subject_id
+     and c.hadm_id = s.hadm_id
      and c.itemid in (
          50010
          )
@@ -138,22 +141,21 @@ CombinedParams as (
 
 -- Only get variables within the first 4 days of ICU admission
 LactateData as (
-  select s.subject_id as subject_id, 
+  select s.subject_id as subject_id, s.hadm_id as hadm_id,
           c.valuenum as val, category, 
           c.charttime - s.icustay_intime as tm, c.charttime, 
           s.icustay_intime, i.codes, d.IABP, d.CABG, d.LVAD, d.RVAD
           
     from cohort s
-    left join CombinedParams c on c.subject_id = s.subject_id
-    left join codedata i       on i.subject_id = s.subject_id
-    left join dis_Cond d       on d.subject_id = s.subject_id
+    left join CombinedParams c on c.subject_id = s.subject_id-- and c.hadm_id = s.hadm_id
+    left join codedata i       on i.subject_id = s.subject_id and i.hadm_id = s.hadm_id
+    left join dis_Cond d       on d.subject_id = s.subject_id and d.hadm_id = s.hadm_id
         
    where c.charttime >= s.icustay_intime
      and c.charttime - s.icustay_intime  <= INTERVAL '4' day 
       or c.charttime is null
       or c.category like '%SURVIVAL%'
       or c.category like '%LOS%'
-     and i.hadm_id = s.hadm_id      
 )
 
 -- Select out the per-apatient attributed that are important
