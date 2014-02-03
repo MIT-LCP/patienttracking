@@ -118,7 +118,7 @@ LabParams as (
     from cohort s,
          mimic2v26.labevents c
    where c.subject_id = s.subject_id
-     and c.hadm_id = s.hadm_id
+     --and c.hadm_id = s.hadm_id
      and c.itemid in (
          50010
          )
