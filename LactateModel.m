@@ -1,12 +1,12 @@
 %Main entry point for analysis of the Lactate Project
 
 close all;clc;close all
-fname='./lact_v3.csv';
+fname='./lactateTimeData.csv';
 
 fid_in=fopen(fname,'r');
-C=textscan(fid_in,'%d %d %q %f %s','delimiter', ',','HeaderLines',1);
+C=textscan(fid_in,'%d %q %f %s','delimiter', ',','HeaderLines',1);
 fclose(fid_in);
-header={'PID','ICUSTAY_ID','CATEGORY','VAL','TM',};
+header={'PID','CATEGORY','VAL','TM',};
 for n=1:length(header)
     eval([header{n} '=C{:,n};'])
 end
@@ -151,7 +151,7 @@ for m=1:M
     plot(urine(:,1),urine(:,2),'o','MarkerFaceColor','b')
     hold on;grid on
     %Filter in an hourly window
-    urine_hat=filtfilt(ones(400,1)./400,1,urine_hat);
+    urine_hat=filtfilt(ones(100,1)./100,1,urine_hat);
     plot(sampTmU,urine_hat,'r');
     xlabel('Hours')
     ylabel('urine Value')
@@ -172,29 +172,11 @@ for m=1:M
     subplot(212)
     plot(urine(:,1),urine(:,2),'o','MarkerFaceColor','b')
     hold on;grid on
-    %Filter in an hourly window
-    urine_hat=filtfilt(ones(400,1)./400,1,urine_hat);
+    %Filter in quarter an hourly window
     plot(sampTmU,urine_hat,'r');
     xlabel('Hours')
     ylabel('urine Value')
     title([num2str(ID(m))])
-    
-    %Estimate phase plane 
-    %Get time range
-    st=max([sampTmU(1) sampTmL(1)]);
-    nd=min([sampTmU(end) sampTmL(end)]);
-    [~,Lst]=min(abs(st-sampTmL));[~,Lnd]=min(abs(nd-sampTmL));
-    [~,Ust]=min(abs(st-sampTmU));[~,Und]=min(abs(nd-sampTmU));
-    InterpN=min([ [Lnd-Lst] [Und-Ust]]);
-    RangeL=linspace(min(lact_hat),max(lact_hat),InterpN);
-    dfL=[diff(lact_hat(Lst:Lnd)) 0];
-    RangeU=linspace(min(urine_hat),max(urine_hat),InterpN);
-    [LL,UU]=meshgrid(RangeL,RangeU);
-    %TODO: Need to average on urine for every urine interval
-    %or find nullclines in the lactate& urine measurements
-    %dL=interp2(lact_hat(Lst:Lnd),urine_hat(Ust:Und),dfL,RangeL,RangeU);
-    %mesh(LL,UU,dL)
-    
     
     close all
     continue
