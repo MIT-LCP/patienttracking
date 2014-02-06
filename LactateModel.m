@@ -1,9 +1,7 @@
-close all;clc
+%Main entry point for analysis of the Lactate Project
 
-%See for other options to estimate CO:
-% http://www.physionet.org/physiotools/cardiac-output/code/3estimate/
-fname=['./lact_v3.csv'];
-
+close all;clc;close all
+fname='./lact_v3.csv';
 
 fid_in=fopen(fname,'r');
 C=textscan(fid_in,'%d %d %q %f %s','delimiter', ',','HeaderLines',1);
@@ -13,12 +11,12 @@ for n=1:length(header)
     eval([header{n} '=C{:,n};'])
 end
 
+%Define sampling interal (in hour) for which we will 
+%be interpolating the time series
+Ts=0.01;
+
 ID=unique(PID);
 M=length(ID);
-POP_TAU=[]; %Median pf 269 samples is -0.0746
-
-th=10;
-Ts=0.01;
 results=[];
 
 for m=1:M
@@ -32,57 +30,36 @@ for m=1:M
     category=CATEGORY(pid_ind(1):pid_ind(end));
     val=VAL(pid_ind(1):pid_ind(end));
     
-    ind=strcmp(category,'WEIGHT');
-    weight=[tm(ind) val(ind)];
-    weight=sortrows(weight,1);
-    del=find(isnan(weight(:,1))==1);
-    weight(del,:)=[];
-    del=find(weight(:,2)==0);
-    if(~isempty(del))
-        weight(del,:)=[];
-    end
-    if(isempty(weight))
-        continue
-    end
-    weight=hourly_median(weight);
+    %TODO: need to add Weight info to the query/dataset!
+    %
+%     ind=strcmp(category,'WEIGHT');
+%     weight=[tm(ind) val(ind)];
+%     weight=sortrows(weight,1);
+%     del=find(isnan(weight(:,1))==1);
+%     weight(del,:)=[];
+%     del=find(weight(:,2)==0);
+%     if(~isempty(del))
+%         weight(del,:)=[];
+%     end
+%     if(isempty(weight))
+%         continue
+%     end
+    weight=1;%hourly_median(weight);
     
     ind=strcmp(category,'LACTATE');
     lact=[tm(ind) val(ind)];
-    if(isempty(lact))
-        continue
-    end
     del=find(isnan(lact(:,1))==1);
     lact(del,:)=[];
-    if(isempty(lact(:,1)) || length(lact(:,1))<th)
-        %This can happen for cases where there is more than 10 but within
-        %ICU stays of duration > 2 days because the MIMIC II query did not
-        %filter those cases out.
-        warning(['Skipping with: ' num2str(length(lact(:,1))) ' id= ' num2str(ID(m))])
-        continue
-    end
-    
-    %For now only choose monotonic cases
-    df=diff(lact(:,2));
-    %     if(any(df>1))
-    %         warning('Skipping non-monotonic case.')
-    %         continue
-    %     end
-    if(max(lact(:,2))<4)
-        continue
-    end
     
     ind=strcmp(category,'HR');
     hr=[tm(ind) val(ind)];
     del=find(isnan(hr(:,1))==1);
+    %Exclude outliers
     del=[del;find(hr(:,2)>200)];
     del=[del;find(hr(:,2)<30)];
     del=unique(del);
     hr(del,:)=[];
     hr=hourly_median(hr);
-    if(isempty(hr) || length(hr(:,1))<th)
-        warning('empty hr')
-        continue;
-    end
     
     ind=strcmp(category,'MAP');
     map=[tm(ind) val(ind)];
@@ -94,9 +71,6 @@ for m=1:M
         map(del,:)=[];
     end
     map=hourly_median(map);
-    if(isempty(map))
-        continue
-    end
     
     
     ind=strcmp(category,'URINE');
@@ -109,28 +83,27 @@ for m=1:M
         urine(del,:)=[];
     end
     urine=hourly_median(urine);
-    if(isempty(urine))
+    
+    %Skipe empty cases
+    if(isempty(urine) || isempty(lact) || isempty(map)|| isempty(hr))
         continue
     end
     
-    %Normalize Urine by Initial patient weight
-    urine(:,2)=urine(:,2)./weight(2);
-    
-    %TODO: average urine output into 4 hour window
-    
-    
+    %TODO: Normalize Urine by Initial patient weight
+    urine(:,2)=urine(:,2)./1;
+   
     %Estimate lacate
     sampTmL=[lact(1,1):Ts:lact(end,1)];
-    [lact_hat,l0]=SmoothModelFit(lact,sampTmL);
+    lact_hat=interp1(lact(:,1),lact(:,2),sampTmL,'linear');
     
     sampTmH=[hr(1,1):Ts:hr(end,1)];
-    [hr_hat,hr0]=SmoothModelFit(hr,sampTmH);
+    hr_hat=interp1(hr(:,1),hr(:,2),sampTmH,'linear');
     
     sampTmM=[map(1,1):Ts:map(end,1)];
-    [map_hat,map0]=SmoothModelFit(map,sampTmM);
+    map_hat=interp1(map(:,1),map(:,2),sampTmM,'linear');
     
     sampTmU=[urine(1,1):Ts:urine(end,1)];
-    [urine_hat,urine0]=SmoothModelFit(urine,sampTmU);
+    urine_hat=interp1(urine(:,1),urine(:,2),sampTmU,'linear');
     
     %Estimate phase space
     %TODO: DL should be a fitted surface with the other variable
@@ -150,6 +123,7 @@ for m=1:M
     subplot(411)
     plot(lact(:,1),lact(:,2),'o','MarkerFaceColor','b')
     hold on;grid on
+    %Filter in an quarter hour window
     lact_hat=filtfilt(ones(106,1)./106,1,lact_hat);
     plot(sampTmL,lact_hat,'r')
     xlabel('Hours')
@@ -176,6 +150,7 @@ for m=1:M
     subplot(414)
     plot(urine(:,1),urine(:,2),'o','MarkerFaceColor','b')
     hold on;grid on
+    %Filter in an hourly window
     urine_hat=filtfilt(ones(400,1)./400,1,urine_hat);
     plot(sampTmU,urine_hat,'r');
     xlabel('Hours')
@@ -186,6 +161,7 @@ for m=1:M
     subplot(211)
     plot(lact(:,1),lact(:,2),'o','MarkerFaceColor','b')
     hold on;grid on
+    %Filter in an quarter hour window
     lact_hat=filtfilt(ones(106,1)./106,1,lact_hat);
     plot(sampTmL,lact_hat,'r')
     xlabel('Hours')
@@ -196,6 +172,7 @@ for m=1:M
     subplot(212)
     plot(urine(:,1),urine(:,2),'o','MarkerFaceColor','b')
     hold on;grid on
+    %Filter in an hourly window
     urine_hat=filtfilt(ones(400,1)./400,1,urine_hat);
     plot(sampTmU,urine_hat,'r');
     xlabel('Hours')
@@ -217,8 +194,6 @@ for m=1:M
     %or find nullclines in the lactate& urine measurements
     %dL=interp2(lact_hat(Lst:Lnd),urine_hat(Ust:Und),dfL,RangeL,RangeU);
     %mesh(LL,UU,dL)
-    figure
-    plot3(urine_hat(Ust:Und),lact_hat(Lst:Lnd),dfL,'b-o');grid on
     
     
     close all
