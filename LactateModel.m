@@ -147,17 +147,6 @@ for m=1:M
     indu=getTimeStamp(sampTmL,sampTmU);
     
     figure
-    subplot(311)
-    quiver(lact_hat',hr_hat(indH)',dl,dh(indH))
-    xlabel('Lactate');ylabel('HR')
-    subplot(312)
-    quiver(lact_hat',map_hat(indm)',dl,dm(indm))
-    xlabel('Lactate');ylabel('MAP')
-    subplot(313)
-    quiver(lact_hat',urine_hat(indu)',dl,du(indu))
-    xlabel('Lactate');ylabel('Urine')
-    
-    figure
     subplot(411)
     plot(lact(:,1),lact(:,2),'o','MarkerFaceColor','b')
     hold on;grid on
