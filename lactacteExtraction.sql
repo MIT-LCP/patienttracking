@@ -79,6 +79,8 @@ ChartedParams as (
                 'HR' 
             when c.itemid in (52, 6702) then
                 'MAP'    
+            when c.itemid in (581) then 
+                'WEIGHT'
          end category,
          c.value1num valuenum
     from cohort s,
@@ -86,7 +88,8 @@ ChartedParams as (
    where c.icustay_id = s.icustay_id     
      and c.itemid in (
          211,
-         52, 6702
+         52, 6702,
+         581
          )
      and c.value1num is not null
 )
@@ -124,8 +127,12 @@ LabParams as (
          )
      and c.valuenum is not null
 )
-, 
 
+, WeightParams as (
+  select subject_id, icustay_id, weight_first as valuenum, s.icustay_intime as charttime,
+         'WEIGHT' as category
+    from cohort s
+)
 -- Union the tables. 
 CombinedParams as (
   select subject_id, category, valuenum, charttime
@@ -157,6 +164,7 @@ LactateData as (
       or c.category like '%SURVIVAL%'
       or c.category like '%LOS%'
 )
+
 
 -- Select out the per-apatient attributed that are important
 select distinct subject_id, codes, IABP, CABG, LVAD, RVAD from LactateData order by subject_id;  
