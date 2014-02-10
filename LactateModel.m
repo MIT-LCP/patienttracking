@@ -1,22 +1,35 @@
 %Main entry point for analysis of the Lactate Project
 
 close all;clc;close all
-fname='./lactateTimeData.csv';
 
+%Load time series data
+fname='./lactateTimeData.csv';
 fid_in=fopen(fname,'r');
 C=textscan(fid_in,'%d %q %f %s','delimiter', ',','HeaderLines',1);
 fclose(fid_in);
-header={'PID','CATEGORY','VAL','TM',};
+header={'PID','CATEGORY','VAL','TM'};
 for n=1:length(header)
     eval([header{n} '=C{:,n};'])
 end
 
+%Load meta data
+fname='./lactatePatientData.csv';
+fid_in=fopen(fname,'r');
+C=textscan(fid_in,'%d %s %d %d %d %d','delimiter', ',','HeaderLines',1);
+fclose(fid_in);
+header={'MID','ICD9CODES','IABP','CABG','LVAD','RVAD'};
+for n=1:length(header)
+    eval([header{n} '=C{:,n};'])
+end
+
+%Elimate patients with IABP, CABG, LVAD, and RVAD
+MID((IABP+CABG+LVAD+RVAD)>0)=[];
+ID=unique(MID);
+M=length(ID);
+
 %Define sampling interal (in hour) for which we will 
 %be interpolating the time series
 Ts=0.01;
-
-ID=unique(PID);
-M=length(ID);
 results=[];
 
 for m=1:M
@@ -50,6 +63,9 @@ for m=1:M
     lact=[tm(ind) val(ind)];
     del=find(isnan(lact(:,1))==1);
     lact(del,:)=[];
+    if(max(lact(:,2))<4)
+        continue
+    end
     
     ind=strcmp(category,'HR');
     hr=[tm(ind) val(ind)];
@@ -82,6 +98,7 @@ for m=1:M
     if(~isempty(del))
         urine(del,:)=[];
     end
+    urine(1:2,:)=[];
     urine=hourly_median(urine);
     
     %Skipe empty cases
@@ -95,6 +112,10 @@ for m=1:M
     %Estimate lacate
     sampTmL=[lact(1,1):Ts:lact(end,1)];
     lact_hat=interp1(lact(:,1),lact(:,2),sampTmL,'linear');
+    if(length(lact(:,1))<10)
+        continue
+    end
+    
     
     sampTmH=[hr(1,1):Ts:hr(end,1)];
     hr_hat=interp1(hr(:,1),hr(:,2),sampTmH,'linear');
@@ -152,13 +173,18 @@ for m=1:M
     hold on;grid on
     %Filter in an hourly window
     urine_hat=filtfilt(ones(100,1)./100,1,urine_hat);
+    urine_mean=filtfilt(ones(1200,1)./1200,1,urine_hat);
+    urine_std=abs(urine_hat-urine_mean);
+    urine_disp=filter(ones(1200,1),1,urine_hat);
+    urine_disp2=filter(ones(1200,1)./1200,1,urine_hat);
+    
     plot(sampTmU,urine_hat,'r');
     xlabel('Hours')
     ylabel('urine Value')
     title([num2str(ID(m))])
     
     figure
-    subplot(211)
+    ax1=subplot(311);
     plot(lact(:,1),lact(:,2),'o','MarkerFaceColor','b')
     hold on;grid on
     %Filter in an quarter hour window
@@ -169,14 +195,22 @@ for m=1:M
     title([num2str(ID(m))])% ' err= ' num2str((err))])
     legend('Lactate','Prediction')
     
-    subplot(212)
-    plot(urine(:,1),urine(:,2),'o','MarkerFaceColor','b')
+    ax2=subplot(312);
+    plot(urine(:,1),urine(:,2),'o','MarkerFaceColor','b');
     hold on;grid on
     %Filter in quarter an hourly window
     plot(sampTmU,urine_hat,'r');
+    plot(sampTmU,urine_mean,'k');
+    plot(sampTmU,urine_std,'g');
+    plot(sampTmU,urine_disp2,'m','LineWidth',3);
     xlabel('Hours')
     ylabel('urine Value')
     title([num2str(ID(m))])
+    
+    ax3=subplot(313);
+    plot(sampTmU,urine_disp,'c','LineWidth',3);
+    
+    linkaxes([ax1 ax2 ax3],'x')
     
     close all
     continue
