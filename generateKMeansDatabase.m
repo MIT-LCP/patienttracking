@@ -7,7 +7,9 @@ clear all;close all;clc
 
 %Define sampling interal (in hour) for which we will
 %be interpolating the time series
-Ts=0.01;
+Ts=0.05;
+nb=round(0.5/Ts); %Filter with half an hour moving average
+b=ones(nb,1)./nb;
 results=[];
 M=length(id);
 
@@ -65,6 +67,8 @@ for m=1:M
         y=[x(1,1):Ts:x(end,1)]';
         y(:,2)=interp1(x(:,1),x(:,2),y,'linear');
         
+        %Filter the waveforms through a moving average
+        y(:,2)=filtfilt(b,1,y(:,2));
         
         %Set y to the time series being analyzed
         eval([varName{n} '=y;'])
@@ -97,12 +101,11 @@ for m=1:M
         feature=feature.*NaN;
         feature(1)=id(m);
         feature(2)=lact_points(k,2);
-        %Get rate of change of lactate based on its time series
         feature(3)=getRateOfChange(lact_points(k,1),lact);
         feat_ind=4;
+        %First and last points maybe NaN becaus of the way the
+        %derivative is being estimated.
         if(~isnan(feature(3)))
-            %First and last points maybe NaN becaus of the way the
-            %derivative is being estimated.
             for i=2:NvarName
                 eval(['x=' varName{i} ';'])
                 [~,tmInd]=min(abs(x(:,1)-lact_points(k,1)));
@@ -120,7 +123,7 @@ for m=1:M
     end
 end
 
-save('lactate-dataset.mat', 'lact_db');
+save('lactate-dataset-Ts05.mat', 'lact_db','Ts');
 display(['***Finished generating dataset!!'])
 display(['***Number of unique subjects=' num2str(length(unique(lact_db(:,1))))])
 display(['***Number of lact measurements=' num2str(length(lact_db(:,1)))])
