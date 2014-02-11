@@ -7,7 +7,7 @@ clear all;close all;clc
 
 %Define sampling interal (in hour) for which we will
 %be interpolating the time series
-Ts=0.05;
+Ts=0.01;
 nb=round(0.5/Ts); %Filter with half an hour moving average
 b=ones(nb,1)./nb;
 results=[];
@@ -21,8 +21,10 @@ NvarName=length(varName);
 %The dataset will contain the following features:
 %pid,lactate value, lactate rate of change, map value, map rate of change, hr
 %value, hr rate of change, urine value, urine rate of change
+%and hourly variances of map, hr, and urine
 lact_db=zeros(0,9);
 feature=zeros(0,9);
+addVariance=0;
 
 display(['***Generating dataset'])
 for m=1:M
@@ -92,38 +94,47 @@ for m=1:M
     end
     Nlact=length(lact_points(:,1));
     if(Nlact<3)
+        warning('Skipping series with less than 3 measured lactate points.')
         continue
     end
     
-    %TODO: only save the points where the actual lactate
-    %measurement was obtained
+    %Lactate waveform data
+    Nlact=length(lact(:,1));
     for k=1:Nlact
         feature=feature.*NaN;
         feature(1)=id(m);
-        feature(2)=lact_points(k,2);
-        feature(3)=getRateOfChange(lact_points(k,1),lact);
+        feature(2)=lact(k,2);
+        feature(3)=getRateOfChange(lact(k,1),lact); %Should be linear....
         feat_ind=4;
         %First and last points maybe NaN becaus of the way the
         %derivative is being estimated.
         if(~isnan(feature(3)))
             for i=2:NvarName
                 eval(['x=' varName{i} ';'])
-                [~,tmInd]=min(abs(x(:,1)-lact_points(k,1)));
+                [~,tmInd]=min(abs(x(:,1)-lact(k,1)));
                 feature(feat_ind)=x(tmInd,2); %Get time series value
                 feat_ind=feat_ind+1;
-                feature(feat_ind)=getRateOfChange(lact_points(k,1),x);%Get time series derivative
+                feature(feat_ind)=getRateOfChange(lact(k,1),x);%Get time series derivative
                 feat_ind=feat_ind+1;
-            end
-            
+                if(addVariance)
+                    feature(feat_ind)=getHourlyVariance(lact(k,1),x);
+                    feat_ind=feat_ind+1;
+                end
+            end   
             %Add to the datase if all feature values exit
             if(~isnan(sum(feature)))
                 lact_db(end+1,:)=feature;
             end
         end
     end
+    
+    
+    
+    
+    
 end
 
-save('lactate-dataset-Ts05.mat', 'lact_db','Ts');
+save('lactate-dataset-Ts01-waveform.mat', 'lact_db','Ts');
 display(['***Finished generating dataset!!'])
 display(['***Number of unique subjects=' num2str(length(unique(lact_db(:,1))))])
 display(['***Number of lact measurements=' num2str(length(lact_db(:,1)))])

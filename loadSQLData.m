@@ -20,8 +20,8 @@ for n=1:length(header)
     eval([header{n} '=C{:,n};'])
 end
 
-%Elimate patients with IABP, CABG, LVAD, and RVAD
-MID((IABP+CABG+LVAD+RVAD)>0)=[];
+%Elimate patients with IABP, no CABG, LVAD, and RVAD
+MID(((IABP==1)+(CABG==0)+(LVAD==1)+(RVAD==1))>0)=[];
 id=unique(MID);
 M=length(id);
 
