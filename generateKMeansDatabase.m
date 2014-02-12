@@ -8,23 +8,23 @@ clear all;close all;clc
 %Define sampling interal (in hour) for which we will
 %be interpolating the time series
 Ts=0.01;
-nb=round(0.5/Ts); %Filter with half an hour moving average
-b=ones(nb,1)./nb;
 results=[];
 M=length(id);
 
 %Used in eval loops to decrease amount of boilerplate code
-varName={'lact','map','hr','urine'};
-varLabels={'LACTATE','MAP','HR','URINE'};
-NvarName=length(varName);
+outVarName={'lact','map','hr','urine','weight'};
+varLabels={'LACTATE','MAP','HR','URINE','WEIGHT'};
+NvarName=length(outVarName);
 
 %The dataset will contain the following features:
-%pid,lactate value, lactate rate of change, map value, map rate of change, hr
+%pid, sampled time, lactate value, lactate rate of change, map value, map rate of change, hr
 %value, hr rate of change, urine value, urine rate of change
-%and hourly variances of map, hr, and urine
-lact_db=zeros(0,9);
-feature=zeros(0,9);
+%all measurements are from the interpolated series and tm is from the
+%lactate series (though the other measurements should be within a 1/Ts)
+lact_db=zeros(0,10);
+feature=zeros(0,10);
 addVariance=0;
+lact_measurements={};
 
 display(['***Generating dataset'])
 for m=1:M
@@ -37,57 +37,30 @@ for m=1:M
     
     category=CATEGORY(pid_ind(1):pid_ind(end));
     val=VAL(pid_ind(1):pid_ind(end));
-    
-    for n=1:NvarName
-        
-        ind=strcmp(category,varLabels{n});
-        x=[tm(ind) val(ind)];
-        if(length(x)<3)
-            eval([varName{n} '=[];'])
-            continue;
-        end
-        x=sortrows(x,1);
-        del=find(isnan(x(:,1))==1);
-        x(del,:)=[];
-        del=find(x(:,2)==0);
-        if(~isempty(del))
-            x(del,:)=[];
-        end
-        if(length(x)<3)
-            eval([varName{n} '=[];'])
-            continue;
-        end
-        x=hourly_median(x);
-        
-        %If this is a lactate series, store the points for indexing
-        %into the dataset
-        if(n==1)
-            lact_points=x;
-        end
-        
-        %Interpolate waveforms
-        y=[x(1,1):Ts:x(end,1)]';
-        y(:,2)=interp1(x(:,1),x(:,2),y,'linear');
-        
-        %Filter the waveforms through a moving average
-        y(:,2)=filtfilt(b,1,y(:,2));
-        
-        %Set y to the time series being analyzed
-        eval([varName{n} '=y;'])
-    end
-    
-    if(isempty(urine) || isempty(map)|| isempty(lact)|| isempty(hr))
+    [lact,map,hr,urine,weight]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName);
+     
+    if(isempty(urine) || isempty(map)|| isempty(lact)|| isempty(hr) || isempty(weight))
         continue
     end
+    
+    %Normalize urine by getting the closest weight in the past
+    urine=normalizeUrine(urine,weight);
     
     %Crop time series to the minimum ranges
     minTm=max([lact(1) map(1) hr(1) urine(1)]);
     maxTm=min([lact(end,1) map(end,1) hr(end,1) urine(end,1)]);
-    for n=1:NvarName
-        eval(['[~,cropTm]=min(abs(' varName{n} '(:,1)-maxTm));'])
-        eval([varName{n} '(cropTm:end,:)=[];'])
+    %The NvarName-1 is because we are excluding weight 
+    for n=1:NvarName-1
+        eval(['[~,cropTm]=min(abs(' outVarName{n} '(:,1)-maxTm));'])
+        eval([outVarName{n} '(cropTm:end,:)=[];'])
     end
-    del=find(lact_points(:,1)<minTm);
+    
+    lact_ind=strcmp(category,'LACTATE');
+    lact_points=[tm(lact_ind) val(lact_ind)];
+    lact_points=sortrows(lact_points,1);
+    del=find(isnan(lact_points(:,1))==1);
+    del=[del;find(lact_points(:,2)==0)];
+    del=[del;find(lact_points(:,1)<minTm)];
     del=[del;find(lact_points(:,1)>maxTm)];
     if(~isempty(del))
         lact_points(del,:)=[];
@@ -103,17 +76,22 @@ for m=1:M
     for k=1:Nlact
         feature=feature.*NaN;
         feature(1)=id(m);
-        feature(2)=lact(k,2);
-        feature(3)=getRateOfChange(lact(k,1),lact); %Should be linear....
-        feat_ind=4;
+        feature(2)=lact(k,1);
+        feature(3)=lact(k,2);
+        feature(4)=getRateOfChange(lact(k,1),lact); %Should be linear....
+        feat_ind=5;
         %First and last points maybe NaN becaus of the way the
         %derivative is being estimated.
         if(~isnan(feature(3)))
-            for i=2:NvarName
-                eval(['x=' varName{i} ';'])
+            %The NvarName-1 is because we are excluding weight
+            %Start at 2 because lactate requires special treatment because
+            %it is what we are trying to predict
+            for i=2:NvarName-1
+                eval(['x=' outVarName{i} ';'])
                 [~,tmInd]=min(abs(x(:,1)-lact(k,1)));
                 feature(feat_ind)=x(tmInd,2); %Get time series value
                 feat_ind=feat_ind+1;
+                %TODO: Add accelaration as a feature
                 feature(feat_ind)=getRateOfChange(lact(k,1),x);%Get time series derivative
                 feat_ind=feat_ind+1;
                 if(addVariance)
@@ -124,17 +102,14 @@ for m=1:M
             %Add to the datase if all feature values exit
             if(~isnan(sum(feature)))
                 lact_db(end+1,:)=feature;
+                lact_measurements(end+1)={lact_points};
             end
         end
     end
     
-    
-    
-    
-    
 end
 
-save('lactate-dataset-Ts01-waveform.mat', 'lact_db','Ts');
+save('lactate-dataset-Ts01-waveform.mat', 'lact_db','Ts','lact_measurements');
 display(['***Finished generating dataset!!'])
 display(['***Number of unique subjects=' num2str(length(unique(lact_db(:,1))))])
 display(['***Number of lact measurements=' num2str(length(lact_db(:,1)))])

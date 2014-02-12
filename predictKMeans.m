@@ -18,7 +18,7 @@ function [x_hat,dx_hat]=predictKMeans(features,db)
 % This will feed into the Kalman filter and the Kalman filter will
 %decide on the best weights
 
-K=10; %the the closes K neighborhs only
+K=20; %the the closes K neighborhs only
 %subtract input feature from db  and get Euclidean distance
 [N,M]=size(db);
 L=length(features(:,1));

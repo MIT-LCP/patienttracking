@@ -30,6 +30,8 @@ M=length(ID);
 %Define sampling interal (in hour) for which we will 
 %be interpolating the time series
 Ts=0.01;
+nb=round(0.5/Ts); %Filter waveforms with half an hour moving average
+b=ones(nb,1)./nb;
 results=[];
 
 for m=1:M
@@ -43,21 +45,19 @@ for m=1:M
     category=CATEGORY(pid_ind(1):pid_ind(end));
     val=VAL(pid_ind(1):pid_ind(end));
     
-    %TODO: need to add Weight info to the query/dataset!
-    %
-%     ind=strcmp(category,'WEIGHT');
-%     weight=[tm(ind) val(ind)];
-%     weight=sortrows(weight,1);
-%     del=find(isnan(weight(:,1))==1);
-%     weight(del,:)=[];
-%     del=find(weight(:,2)==0);
-%     if(~isempty(del))
-%         weight(del,:)=[];
-%     end
-%     if(isempty(weight))
-%         continue
-%     end
-    weight=1;%hourly_median(weight);
+    ind=strcmp(category,'WEIGHT');
+    weight=[tm(ind) val(ind)];
+    weight=sortrows(weight,1);
+    del=find(isnan(weight(:,1))==1);
+    weight(del,:)=[];
+    del=find(weight(:,2)==0);
+    if(~isempty(del))
+        weight(del,:)=[];
+    end
+    if(length(weight)<3)
+        continue
+    end
+    weight=hourly_median(weight);
     
     ind=strcmp(category,'LACTATE');
     lact=[tm(ind) val(ind)];
@@ -98,6 +98,9 @@ for m=1:M
     if(~isempty(del))
         urine(del,:)=[];
     end
+    if(length(urine)<3)
+        continue
+    end
     urine(1:2,:)=[];
     urine=hourly_median(urine);
     
@@ -106,15 +109,13 @@ for m=1:M
         continue
     end
     
-    %TODO: Normalize Urine by Initial patient weight
-    urine(:,2)=urine(:,2)./1;
-   
     %Estimate lacate
-    sampTmL=[lact(1,1):Ts:lact(end,1)];
-    lact_hat=interp1(lact(:,1),lact(:,2),sampTmL,'linear');
-    if(length(lact(:,1))<10)
+     if(length(lact(:,1))<10)
         continue
     end
+    sampTmL=[lact(1,1):Ts:lact(end,1)];
+    lact_hat=interp1(lact(:,1),lact(:,2),sampTmL,'linear');
+   
     
     
     sampTmH=[hr(1,1):Ts:hr(end,1)];
@@ -126,91 +127,64 @@ for m=1:M
     sampTmU=[urine(1,1):Ts:urine(end,1)];
     urine_hat=interp1(urine(:,1),urine(:,2),sampTmU,'linear');
     
-    %Estimate phase space
-    %TODO: DL should be a fitted surface with the other variable
-    %TODO: Maybe DX can also be modeled as the error in a LPC filter ?
-    dl=[diff(lact_hat) NaN]';
-    dh=[diff(hr_hat) 0]';
-    dm=[diff(map_hat) 0]';
-    du=[diff(urine_hat) 0]';
+    sampTmW=[weight(1,1):Ts:weight(end,1)];
+    weight_hat=interp1(weight(:,1),weight(:,2),sampTmW,'linear');
     
-    indL=getTimeStamp(lact(:,1),sampTmL);
-    %indH=getTimeStamp(lact(:,1),sampTmH);
-    indH=getTimeStamp(sampTmL,sampTmH);
-    indm=getTimeStamp(sampTmL,sampTmM);
-    indu=getTimeStamp(sampTmL,sampTmU);
+    %Normalize urine
+    urine=normalizeUrine(urine,weight);
+    tmUrine=[sampTmU' urine_hat'];
+    tmWeight=[sampTmW' weight_hat'];
+    tmUrine=normalizeUrine(tmUrine,tmWeight);
+    urine_hat=tmUrine(:,2);
     
     figure
-    subplot(411)
+    subplot(511)
     plot(lact(:,1),lact(:,2),'o','MarkerFaceColor','b')
     hold on;grid on
     %Filter in an quarter hour window
-    lact_hat=filtfilt(ones(106,1)./106,1,lact_hat);
+    lact_hat=filtfilt(b,1,lact_hat);
     plot(sampTmL,lact_hat,'r')
     xlabel('Hours')
     ylabel('Lacate Value')
     title([num2str(ID(m))])% ' err= ' num2str((err))])
     legend('Lactate','Prediction')
     
-    subplot(412)
+    subplot(512)
     plot(hr(:,1),hr(:,2),'o','MarkerFaceColor','b')
     hold on;grid on
+    hr_hat=filtfilt(b,1,hr_hat);
     plot(sampTmH,hr_hat,'r')
     xlabel('Hours')
     ylabel('HR Value')
     title([num2str(ID(m))])% ' err=
     
-    subplot(413)
+    subplot(513)
     plot(map(:,1),map(:,2),'o','MarkerFaceColor','b')
     hold on;grid on
+    map_hat=filtfilt(b,1,map_hat);
     plot(sampTmM,map_hat,'r')
     xlabel('Hours')
     ylabel('map Value')
     title([num2str(ID(m))])
     
-    subplot(414)
+    subplot(514)
+    plot(weight(:,1),weight(:,2),'o','MarkerFaceColor','b')
+    hold on;grid on
+    weight_hat=filtfilt(b,1,weight_hat);
+    plot(sampTmW,weight_hat,'r')
+    xlabel('Hours')
+    ylabel('weight Value')
+    title([num2str(ID(m))])
+    
+    subplot(515)
     plot(urine(:,1),urine(:,2),'o','MarkerFaceColor','b')
     hold on;grid on
     %Filter in an hourly window
-    urine_hat=filtfilt(ones(100,1)./100,1,urine_hat);
-    urine_mean=filtfilt(ones(1200,1)./1200,1,urine_hat);
-    urine_std=abs(urine_hat-urine_mean);
-    urine_disp=filter(ones(1200,1),1,urine_hat);
-    urine_disp2=filter(ones(1200,1)./1200,1,urine_hat);
-    
+    urine_hat=filtfilt(b,1,urine_hat);
     plot(sampTmU,urine_hat,'r');
     xlabel('Hours')
-    ylabel('urine Value')
+    ylabel('urine (normalized)')
     title([num2str(ID(m))])
-    
-    figure
-    ax1=subplot(311);
-    plot(lact(:,1),lact(:,2),'o','MarkerFaceColor','b')
-    hold on;grid on
-    %Filter in an quarter hour window
-    lact_hat=filtfilt(ones(106,1)./106,1,lact_hat);
-    plot(sampTmL,lact_hat,'r')
-    xlabel('Hours')
-    ylabel('Lacate Value')
-    title([num2str(ID(m))])% ' err= ' num2str((err))])
-    legend('Lactate','Prediction')
-    
-    ax2=subplot(312);
-    plot(urine(:,1),urine(:,2),'o','MarkerFaceColor','b');
-    hold on;grid on
-    %Filter in quarter an hourly window
-    plot(sampTmU,urine_hat,'r');
-    plot(sampTmU,urine_mean,'k');
-    plot(sampTmU,urine_std,'g');
-    plot(sampTmU,urine_disp2,'m','LineWidth',3);
-    xlabel('Hours')
-    ylabel('urine Value')
-    title([num2str(ID(m))])
-    
-    ax3=subplot(313);
-    plot(sampTmU,urine_disp,'c','LineWidth',3);
-    
-    linkaxes([ax1 ax2 ax3],'x')
     
     close all
     continue

@@ -3,11 +3,11 @@ function [db,mn,st,v]=normalizeKMeans(db)
 %Each row is a sample and each column a feature
 
 [N,M]=size(db);
+
 mn=mean(db);
 db= db - repmat(mn,[N 1]);
 
-%Get principal component (whiten) and normalize to unit variances
-[u,s,v]=svd(db);
+[~,~,v]=svd(db,0);
 db=db*v;
 
 st=std(db);
