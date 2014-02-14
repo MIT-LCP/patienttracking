@@ -2,9 +2,15 @@
 clear all;close all;clc
 
 %The database is expected to have the input features start at the 4th
-%column until the end. The first 3 colums are pid, lact, and lact
+%column until the end. The first 4 colums are pid, tm, lact, and lact
 %derivative
-feat_offset=5;
+%The dataset will contain the following features:
+%pid, sampled time, lactate value, lactate rate of change, acceleration , map value, map rate of change, acceleration,
+%hr value, hr rate of change, acceleration, urine value, urine rate of change, acceleration all measurements are from 
+%the interpolated series and tm is from the lactate series (though the other measurements should be within a 1/T
+
+feat_offset=6;
+lact_ind=3; %Lactate values are locaed in this column
 load lactate-dataset-Ts01-waveform
 %Only keep urine output variance
 
@@ -19,7 +25,7 @@ Ntrain=3; %Number of initial training samples
 %because first 3 points are used for calibration
 data=[];
 P=zeros(N,2); %per subject correlation coefficient
-for n=1:N
+for n=19:N
     
     select_pid=find(lact_db(:,1)==pid(n));
     x=lact_db(select_pid,:); % x is data from the patient that we are trying to predict (should only use the first 3 columns, only during calibration)
@@ -32,7 +38,7 @@ for n=1:N
     
     %Generate temporary db without the patient info
     tmp_db=lact_db;
-    tmp_db(select_pid,:)=[];
+    tmp_db(select_pid,:)=[]; %As a test case, should give very good results if commented out
     
     %Normalize db so its has zero mean and unit variance
     %First 3 columns are assumed to be PID, LACT, LACT DERIV
@@ -41,7 +47,7 @@ for n=1:N
     [tmp_db(:,feat_offset:end),umean,ustd,v]=normalizeKMeans(tmp_db(:,feat_offset:end));
     
     %Apply same transformations to test data
-    x(:,feat_offset:end)=x(:,feat_offset:end)-repmat(umean,[Nx 1]);
+    %x(:,feat_offset:end)=x(:,feat_offset:end)-repmat(umean,[Nx 1]);
     x(:,feat_offset:end)=x(:,feat_offset:end)*v;%Decorrelate features based on SVD of database
     x(:,feat_offset:end)=x(:,feat_offset:end)./repmat(ustd,[Nx 1]);
     
@@ -53,34 +59,18 @@ for n=1:N
     %TODO: use measured points only for the kalman calculations
     Nfeat=length(x(1,feat_offset:end));
     xhat=ones(1,Nfeat+1);
-    [lact_hat,dlact_hat]=predictKMeans(x(1:cal_end,feat_offset:end),tmp_db(:,3:end));
-    dc=ones(cal_end,1);
-    [xhat,XHAT,ALPHA]=kallman([lact_hat dc],x(1:cal_end,3),xhat);
-        
-    
-    %Predict rest of the data
-    [lact_hat,dlact_hat]=predictKMeans(x(:,feat_offset:end),tmp_db(:,3:end));
-    dc=ones(Nx,1);
-    kallman_lact_hat=[lact_hat dc]*xhat;
-    
+    [lact_hat_train,dlact_hat]=predictKMeans(x(:,feat_offset:end),tmp_db,feat_offset,lact_ind);
+    lact_hat=mean(lact_hat_train,2);
+    Nb=round(2/Ts);
+    bhour=ones(Nb,1)./Nb;
+    Fkallman_lact_hat=filter(bhour,1,lact_hat)+(x(1,3));
+       
     %Plot measured lactate, interpolated lacate, and prediction
+    figure
     plot(x(:,2),x(:,3),'LineWidth',3);hold on;grid on
     plot(lact_points(:,1),lact_points(:,2),'ro','LineWidth',3,'MarkerSize',6)
-    plot(x(:,2), kallman_lact_hat,'k')
-    tmp_data=[x(:,2) kallman_lact_hat];%x(1,2).*ones(Nselect-Ntrain,1) kallman_lact_hat
-    data(end+1:end+Nselect-Ntrain,:)=tmp_data;
-    if(length(tmp_data(:,1))>2)
-        p=corrcoef(tmp_data);
-        P(n,:)=[pid(n) p(2)];
-    end
+    plot(x(:,2)+Nb*Ts, Fkallman_lact_hat,'k') %Shift by filter delay
+
 end
 
-%third sample only -> 0.7003
-%kalman  & firt sample -> 0.6579
-%kalman DC=1 -> 0.6761
-%kalman DC=1 and urine variance -> 0.6583
-%first sample only -> 0.5319
-
-p=corrcoef(data);
-scatter(data(:,1),data(:,2))
-title(['pmean= ' num2str(p(2)) ' pmedian= ' num2str(nanmedian(P(:,2))) ' n= ' num2str(length(P(:,1)))])
+display(['Finished simulation!'])

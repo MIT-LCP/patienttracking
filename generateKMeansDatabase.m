@@ -17,12 +17,11 @@ varLabels={'LACTATE','MAP','HR','URINE','WEIGHT'};
 NvarName=length(outVarName);
 
 %The dataset will contain the following features:
-%pid, sampled time, lactate value, lactate rate of change, map value, map rate of change, hr
-%value, hr rate of change, urine value, urine rate of change
-%all measurements are from the interpolated series and tm is from the
-%lactate series (though the other measurements should be within a 1/Ts)
-lact_db=zeros(0,10);
-feature=zeros(0,10);
+%pid, sampled time, lactate value, lactate rate of change, acceleration , map value, map rate of change, acceleration,
+%hr value, hr rate of change, acceleration, urine value, urine rate of change, acceleration all measurements are from 
+%the interpolated series and tm is from the lactate series (though the other measurements should be within a 1/Ts)
+lact_db=zeros(0,13);
+feature=zeros(0,13);
 addVariance=0;
 lact_measurements={};
 
@@ -94,10 +93,8 @@ for m=1:M
                 %TODO: Add accelaration as a feature
                 feature(feat_ind)=getRateOfChange(lact(k,1),x);%Get time series derivative
                 feat_ind=feat_ind+1;
-                if(addVariance)
-                    feature(feat_ind)=getHourlyVariance(lact(k,1),x);
-                    feat_ind=feat_ind+1;
-                end
+                feature(feat_ind)=getAcceleration(lact(k,1),x);%Get time series derivative
+                feat_ind=feat_ind+1;
             end   
             %Add to the datase if all feature values exit
             if(~isnan(sum(feature)))

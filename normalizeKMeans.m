@@ -5,7 +5,7 @@ function [db,mn,st,v]=normalizeKMeans(db)
 [N,M]=size(db);
 
 mn=mean(db);
-db= db - repmat(mn,[N 1]);
+%sdb= db - repmat(mn,[N 1]);
 
 [~,~,v]=svd(db,0);
 db=db*v;

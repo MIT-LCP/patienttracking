@@ -51,6 +51,11 @@ for n=1:NvarName
         eval([outVarName{n} '=[];'])
         continue;
     end
+    
+    %Only keep the longest segment that has a minimum of P points
+    %per hour for TmDuration hours
+    isGood=hasFrequentHourlyPoints(x,P,TmDuration);
+    
     x=hourly_median(x);
     
     %Interpolate waveforms
