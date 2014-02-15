@@ -10,7 +10,9 @@ function dx=getRateOfChange(timeIndex,timeSeries)
 
 dx=NaN;
 [~,ind]=min(abs(timeIndex-timeSeries(:,1)));
-if(ind>3 && ind<(length(timeSeries(:,1))-2))
-    num=-timeSeries(ind+2,2)+8*timeSeries(ind+1,2)-8*timeSeries(ind-1,2)+timeSeries(ind-2,2);
-    dx=num/12;
+if(~isnan(ind))
+    if(ind>3 && ind<(length(timeSeries(:,1))-2))
+        num=-timeSeries(ind+2,2)+8*timeSeries(ind+1,2)-8*timeSeries(ind-1,2)+timeSeries(ind-2,2);
+        dx=num/12;
+    end
 end
