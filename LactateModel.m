@@ -22,8 +22,10 @@ for n=1:length(header)
     eval([header{n} '=C{:,n};'])
 end
 
-%Elimate patients with IABP, CABG, LVAD, and RVAD
-MID((IABP+CABG+LVAD+RVAD)>0)=[];
+% Elimate patients with IABP, LVAD, and RVAD
+% Only look at those patietns with CABG
+%MID((IABP+CABG+LVAD+RVAD)>0)=[];
+MID(~CABG) = [];
 ID=unique(MID);
 M=length(ID);
 
@@ -34,6 +36,7 @@ nb=round(0.5/Ts); %Filter waveforms with half an hour moving average
 b=ones(nb,1)./nb;
 results=[];
 
+corr_mat = zeros(M, 1);
 for m=1:M
     pid_ind=find(PID==ID(m));
     
@@ -45,6 +48,8 @@ for m=1:M
     category=CATEGORY(pid_ind(1):pid_ind(end));
     val=VAL(pid_ind(1):pid_ind(end));
     
+    % TODO: Do better outlier detection in the dataset, based on 2/3 std
+    % dev, also try the box-cox approach!
     ind=strcmp(category,'WEIGHT');
     weight=[tm(ind) val(ind)];
     weight=sortrows(weight,1);
@@ -110,14 +115,12 @@ for m=1:M
     end
     
     %Estimate lacate
-     if(length(lact(:,1))<10)
+    if(length(lact(:,1))<10)
         continue
     end
     sampTmL=[lact(1,1):Ts:lact(end,1)];
-    lact_hat=interp1(lact(:,1),lact(:,2),sampTmL,'linear');
-   
-    
-    
+    lact_hat=interp1(lact(:,1),lact(:,2),sampTmL,'linear');   
+        
     sampTmH=[hr(1,1):Ts:hr(end,1)];
     hr_hat=interp1(hr(:,1),hr(:,2),sampTmH,'linear');
     
@@ -137,59 +140,83 @@ for m=1:M
     tmUrine=normalizeUrine(tmUrine,tmWeight);
     urine_hat=tmUrine(:,2);
     
-    figure
-    subplot(511)
-    plot(lact(:,1),lact(:,2),'o','MarkerFaceColor','b')
-    hold on;grid on
-    %Filter in an quarter hour window
-    lact_hat=filtfilt(b,1,lact_hat);
-    plot(sampTmL,lact_hat,'r')
-    xlabel('Hours')
-    ylabel('Lacate Value')
-    title([num2str(ID(m))])% ' err= ' num2str((err))])
-    legend('Lactate','Prediction')
+%     figure
+%     subplot(511)
+%     plot(lact(:,1),lact(:,2),'o','MarkerFaceColor','b')
+%     hold on;grid on
+%     %Filter in an quarter hour window
+%     lact_hat=filtfilt(b,1,lact_hat);
+%     plot(sampTmL,lact_hat,'r')
+%     xlabel('Hours')
+%     ylabel('Lacate Value')
+%     title([num2str(ID(m))])% ' err= ' num2str((err))])
+%     legend('Lactate','Prediction')
+%     
+%     subplot(512)
+%     plot(hr(:,1),hr(:,2),'o','MarkerFaceColor','b')
+%     hold on;grid on
+%     hr_hat=filtfilt(b,1,hr_hat);
+%     plot(sampTmH,hr_hat,'r')
+%     xlabel('Hours')
+%     ylabel('HR Value')
+%     title([num2str(ID(m))])% ' err=
+%     
+%     subplot(513)
+%     plot(map(:,1),map(:,2),'o','MarkerFaceColor','b')
+%     hold on;grid on
+%     map_hat=filtfilt(b,1,map_hat);
+%     plot(sampTmM,map_hat,'r')
+%     xlabel('Hours')
+%     ylabel('map Value')
+%     title([num2str(ID(m))])
+%     
+%     subplot(514)
+%     plot(weight(:,1),weight(:,2),'o','MarkerFaceColor','b')
+%     hold on;grid on
+%     weight_hat=filtfilt(b,1,weight_hat);
+%     plot(sampTmW,weight_hat,'r')
+%     xlabel('Hours')
+%     ylabel('weight Value')
+%     title([num2str(ID(m))])
+%     
+%     subplot(515)
+%     plot(urine(:,1),urine(:,2),'o','MarkerFaceColor','b')
+%     hold on;grid on
+%     %Filter in an hourly window
+%     urine_hat=filtfilt(b,1,urine_hat);
+%     plot(sampTmU,urine_hat,'r');
+%     xlabel('Hours')
+%     ylabel('urine (normalized)')
+%     title([num2str(ID(m))])
+%     
+    %---------------------------------
+    % First we need the signals (urine and lactate to be the same size
+    min_x = max(sampTmU(1), sampTmL(1));
+    max_x = min(sampTmU(end), sampTmL(end));
     
-    subplot(512)
-    plot(hr(:,1),hr(:,2),'o','MarkerFaceColor','b')
-    hold on;grid on
-    hr_hat=filtfilt(b,1,hr_hat);
-    plot(sampTmH,hr_hat,'r')
-    xlabel('Hours')
-    ylabel('HR Value')
-    title([num2str(ID(m))])% ' err=
+    lact_hat(sampTmL < min_x | sampTmL > max_x) = []; 
+    urine_hat(sampTmU < min_x | sampTmU > max_x) = [];    
+
+    if length(lact_hat) > length(urine_hat)
+        lact_hat(1:(length(lact_hat) - length(urine_hat))) = [];
+    else
+        urine_hat(1:(length(urine_hat) - length(lact_hat))) = [];
+    end
     
-    subplot(513)
-    plot(map(:,1),map(:,2),'o','MarkerFaceColor','b')
-    hold on;grid on
-    map_hat=filtfilt(b,1,map_hat);
-    plot(sampTmM,map_hat,'r')
-    xlabel('Hours')
-    ylabel('map Value')
-    title([num2str(ID(m))])
+    [r, p] = corrcoef([lact_hat(:) urine_hat(:)]);    % compute sample correlation and p-values
     
-    subplot(514)
-    plot(weight(:,1),weight(:,2),'o','MarkerFaceColor','b')
-    hold on;grid on
-    weight_hat=filtfilt(b,1,weight_hat);
-    plot(sampTmW,weight_hat,'r')
-    xlabel('Hours')
-    ylabel('weight Value')
-    title([num2str(ID(m))])
+    % Save the correlation coefficient IF the p value is less than 0.01
+    if p(1, 2) < 0.01
+        corr_mat(m) = r(1, 2);
+    end
     
-    subplot(515)
-    plot(urine(:,1),urine(:,2),'o','MarkerFaceColor','b')
-    hold on;grid on
-    %Filter in an hourly window
-    urine_hat=filtfilt(b,1,urine_hat);
-    plot(sampTmU,urine_hat,'r');
-    xlabel('Hours')
-    ylabel('urine (normalized)')
-    title([num2str(ID(m))])
+    % Code to do the per patient estimation of correlation coefficient            
+    %xcorr();
     
-    close all
-    continue
-    
-    
+    %---------------------------------
+%     close all
+    %continue
+
 end
 
 

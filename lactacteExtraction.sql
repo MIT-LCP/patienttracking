@@ -1,9 +1,9 @@
 /*
 * Ikaro Silva & Marzyeh Ghassemi
-- Feb 2, 2014
+- Feb 12, 2014
 
 In this query we are using only patients whose first ICU stay service is
-of type CSRU, and who has at least 5 lactate measurements. The
+of type CSRU, and who has at least 3 lactate measurements. The
 variables being extracted are HR, MAP, urine output, and lactate.
 */
 
@@ -13,10 +13,10 @@ with CODEDATA AS (
  FROM MIMIC2V26.ICD9 C
  GROUP BY C.SUBJECT_ID, C.HADM_ID
  )
- --select * from codedata;
+--select * from codedata;
 ,
 
--- Identify those with at least 5 lactate measures
+-- Identify those with at least 3 lactate measures
 minLact as(
   select subject_id as pid, hadm_id as hid
   from (
@@ -25,10 +25,10 @@ minLact as(
       where itemid=50010
       group by subject_id, hadm_id
       )
-   where LactN >= 5
+   where LactN >= 3
    --and subject_id < 1000
 )
---select * from minLact;-- where subject_id=12;
+--select count(unique(pid)) from minLact; -- There are 8,990 unique patients with 10,304 hoptial admissions. 
 ,
 
 -- Get the overall cohort
@@ -64,6 +64,28 @@ dis_Cond as (
   where n.subject_id = s.subject_id
     and n.hadm_id = s.hadm_id
     and lower(n.category) like 'discharge_summary'
+)
+--select count(1) from dis_Cond where RVAD = 1; --3
+--select count(1) from dis_Cond where LVAD = 1; --4
+,
+
+-- Check the procedure codes for the following:
+-- 'cabg' (coronary bypass graft), IABP (intra aortic balloon pump), RUAD (right ventricular assistance device),
+-- LUAD (left ventricular assistance device)
+proc_Cond as (
+  select s.subject_id, s.hadm_id, --category,
+    case when (lower(text) like '%cabg%' or lower(text) like '%coronary bypass graft%') then 1 else 0 end as CABG,
+    case when (lower(text) like '%iabp%' or lower(text) like '%intra-aortic balloon pump%') then 1 else 0 end as IABP,
+    case when (lower(text) like '%rvad%' or lower(text) like '%right ventricular assistance device%') then 1 else 0 end as RVAD,
+    case when (lower(text) like '%lvad%' or lower(text) like '%left ventricular assistance device%') then 1 else 0 end as LVAD
+
+  from cohort s,
+       mimic2v26.noteevents n
+  where n.subject_id = s.subject_id
+    and n.hadm_id = s.hadm_id
+    and lower(n.category) like 'discharge_summary'
+     or p.itemid in 
+        (select distinct itemid from mimic2v26.d_codeditems where (code like '967%' or code like '3995%' or code like '8914%') and type='PROCEDURE')    
 )
 --select count(1) from dis_Cond where RVAD = 1; --3
 --select count(1) from dis_Cond where LVAD = 1; --4
