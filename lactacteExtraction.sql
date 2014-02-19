@@ -26,7 +26,7 @@ minLact as(
       group by subject_id, hadm_id
       )
    where LactN >= 3
-   --and subject_id < 1000
+   and subject_id < 1000
 )
 --select count(unique(pid)) from minLact; -- There are 8,990 unique patients with 10,304 hoptial admissions. 
 ,
@@ -45,8 +45,8 @@ select *
   and ICUSTAY_FIRST_SERVICE = 'CSRU'
 )
 --select * from cohort;
---select count(distinct subject_id) from cohort; -- 525
---select count(1) from cohort; -- 525
+--select count(distinct subject_id) from cohort; -- 1250
+--select count(1) from cohort; -- 1250
 ,
 
 -- Flag patients with the following in the discharge summaries:
@@ -54,41 +54,85 @@ select *
 -- LUAD (left ventricular assistance device)
 dis_Cond as (
   select s.subject_id, s.hadm_id, --category,
-    case when (lower(text) like '%cabg%' or lower(text) like '%coronary bypass graft%') then 1 else 0 end as CABG,
-    case when (lower(text) like '%iabp%' or lower(text) like '%intra-aortic balloon pump%') then 1 else 0 end as IABP,
-    case when (lower(text) like '%rvad%' or lower(text) like '%right ventricular assistance device%') then 1 else 0 end as RVAD,
-    case when (lower(text) like '%lvad%' or lower(text) like '%left ventricular assistance device%') then 1 else 0 end as LVAD
+    case when (
+      ((lower(n.text) like '%cabg%' or lower(n.text) like '%coronary bypass graft%') and lower(n.category) like 'discharge_summary') 
+      or 
+      (p.itemid in (select distinct itemid from mimic2v26.d_codeditems where (code like '3611' or code like '3612' or code like '3613' or code like '3614') and type = 'PROCEDURE'))  )
+      then 1 else 0 end as CABG,
+    case when ( 
+        ((lower(n.text) like '%iabp%' or lower(n.text) like '%intra-aortic balloon pump%') and lower(n.category) like 'discharge_summary')
+        or 
+        (p.itemid in (select distinct itemid from mimic2v26.d_codeditems where (code like '3761') and type = 'PROCEDURE'))  )
+      then 1 else 0 end as IABP,
+    case when (lower(n.text) like '%rvad%' or lower(n.text) like '%right ventricular assistance device%') then 1 else 0 end as RVAD,
+    case when (lower(n.text) like '%lvad%' or lower(n.text) like '%left ventricular assistance device%') then 1 else 0 end as LVAD
 
   from cohort s,
-       mimic2v26.noteevents n
+       mimic2v26.noteevents n,
+       mimic2v26.procedureevents p
   where n.subject_id = s.subject_id
     and n.hadm_id = s.hadm_id
-    and lower(n.category) like 'discharge_summary'
+    and p.subject_id = s.subject_id
+    and p.hadm_id = s.hadm_id            
 )
---select count(1) from dis_Cond where RVAD = 1; --3
---select count(1) from dis_Cond where LVAD = 1; --4
+--select count(1) from dis_Cond where RVAD = 1; --71
+--select count(1) from dis_Cond where LVAD = 1; --81
+--select count(1) from dis_Cond where IABP = 1; --1048
+--select count(1) from dis_Cond where CABG = 1; --3482
 ,
 
--- Check the procedure codes for the following:
--- 'cabg' (coronary bypass graft), IABP (intra aortic balloon pump), RUAD (right ventricular assistance device),
--- LUAD (left ventricular assistance device)
-proc_Cond as (
-  select s.subject_id, s.hadm_id, --category,
-    case when (lower(text) like '%cabg%' or lower(text) like '%coronary bypass graft%') then 1 else 0 end as CABG,
-    case when (lower(text) like '%iabp%' or lower(text) like '%intra-aortic balloon pump%') then 1 else 0 end as IABP,
-    case when (lower(text) like '%rvad%' or lower(text) like '%right ventricular assistance device%') then 1 else 0 end as RVAD,
-    case when (lower(text) like '%lvad%' or lower(text) like '%left ventricular assistance device%') then 1 else 0 end as LVAD
-
-  from cohort s,
-       mimic2v26.noteevents n
-  where n.subject_id = s.subject_id
-    and n.hadm_id = s.hadm_id
-    and lower(n.category) like 'discharge_summary'
-     or p.itemid in 
-        (select distinct itemid from mimic2v26.d_codeditems where (code like '967%' or code like '3995%' or code like '8914%') and type='PROCEDURE')    
+/*
+* Pressor medication status
+*/
+medications as
+(
+  select me.subject_id, s.hadm_id, me.itemid, me.charttime,
+  LEAD(charttime, 1) over (partition by me.subject_id order by charttime) as nexttime,
+  l.label
+ 
+  from mimic2v26.medevents me,
+       mimic2v26.d_meditems l,
+       MIMIC2V26.ICUSTAY_DETAIL I,
+       cohort s
+   
+  where me.subject_id = s.subject_id
+    and S.SUBJECT_ID = I.SUBJECT_ID
+    and i.hadm_id = s.hadm_id    
+    and me.icustay_id = i.icustay_id    
+    and me.itemid = l.itemid
+    and me.itemid IN (46, 47, 120, 43, 307, 44, 119, 309, 51, 127, 128)
+--  order by me.subject_id, me.charttime, nexttime
 )
---select count(1) from dis_Cond where RVAD = 1; --3
---select count(1) from dis_Cond where LVAD = 1; --4
+--select * from medications;
+,
+
+press as
+(
+  select subject_id, hadm_id, charttime, nexttime,
+  (nexttime - charttime) as lapse,
+  to_number(extract(minute from (nexttime - charttime))) 
+    + to_number(extract(hour from (nexttime - charttime))) * 60 
+    + to_number(extract(day from (nexttime - charttime))) * 60 * 24 as minutes,
+--  (SYSDATE + (nexttime - charttime)*1440 - SYSDATE) AS minutes, -- 86400 seconds
+  case
+    when nexttime is null then 0 
+    when (nexttime - charttime) > interval '6' hour then 0 
+    else 1 end
+  as pressor
+  from medications
+)
+--select * from press;
+,
+
+pressor_data as
+(
+  select subject_id, hadm_id, to_char(charttime,'DD-MM-YYYY') as charttime, sum(minutes) as valuenum, 'PRESSOR_TIME_MINUTES' as category
+  from press 
+  where pressor = 1 
+  group by subject_id, hadm_id, to_char(charttime,'DD-MM-YYYY')
+  order by subject_id, hadm_id
+)
+--select * from pressor_data;
 ,
 
 -- Pull out HR/MAP
@@ -166,14 +210,17 @@ CombinedParams as (
   UNION
   select subject_id, category, valuenum, charttime
     from UrineParams
-     UNION
+  UNION
   select subject_id, category, valuenum, charttime
     from LabParams
-     UNION
+  UNION
   select subject_id, category, valuenum, charttime
-    from WeightParams        
+    from WeightParams
+  UNION
+  select subject_id, category, valuenum, to_date(charttime, 'DD-MM-YYYY') as charttime
+    from pressor_data
 )
---select * from CombinedParams;
+select * from CombinedParams;
 ,
 
 -- Only get variables within the first 4 days of ICU admission
@@ -184,9 +231,9 @@ LactateData as (
           s.icustay_intime, i.codes, d.IABP, d.CABG, d.LVAD, d.RVAD
           
     from cohort s
-    left join CombinedParams c on c.subject_id = s.subject_id-- and c.hadm_id = s.hadm_id
-    left join codedata i on i.subject_id = s.subject_id and i.hadm_id = s.hadm_id
-    left join dis_Cond d on d.subject_id = s.subject_id and d.hadm_id = s.hadm_id
+    left join CombinedParams c  on c.subject_id = s.subject_id-- and c.hadm_id = s.hadm_id
+    left join codedata i        on i.subject_id = s.subject_id and i.hadm_id = s.hadm_id
+    left join dis_Cond d        on d.subject_id = s.subject_id and d.hadm_id = s.hadm_id
         
    where c.charttime >= s.icustay_intime
      and c.charttime - s.icustay_intime <= INTERVAL '4' day
