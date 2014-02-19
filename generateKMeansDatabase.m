@@ -15,6 +15,7 @@ M=length(id);
 outVarName={'lact','map','hr','urine','weight'};
 varLabels={'LACTATE','MAP','HR','URINE','WEIGHT'};
 NvarName=length(outVarName);
+fname='lactate-kmeans-dataset.mat'; %File name that will be created
 
 %The dataset used for k-means will contain following features described
 %each in column (these values are interpolated for all waveforms, sampled
@@ -62,29 +63,36 @@ for n=1:NvarName
     end
 end
 lact_ind=cellfun(@isempty, strfind(CATEGORY,'LACTATE'));
-Nlact=sum(~lact_ind);
-display(['***Generating dataset for ' num2str(Nlact) ' lactate measurements.'])
+NlactTotal=sum(~lact_ind);
+display(['***Generating dataset for ' num2str(NlactTotal) ' lactate measurements.'])
 Nlact_check=0; %Use as double check on how many lactate values we process
 Nlact_removed=0;
-pid_unprocessed=pid;
-for m=65:M
+show=0; %Set this to true to display interpolate waveforms (need to be on debug mode)
+
+for m=1:M
+
     pid_ind=find(pid==id(m));
-    
     if(isempty(pid_ind))
         warning(['Skipping empty data from subject: ' num2str(id(m))])
         continue
     end
-    pid_unprocessed(pid_ind)=pid_unprocessed(pid_ind)+NaN;
     tm=TM(pid_ind(1):pid_ind(end));
     tm=cell2mat(tm);
     tm=datenum(tm(:,3:end),'HH:MM')+ num2str(tm(:,1)); %date num returns in days
     tm=(tm-tm(1)).*24;
-    
     category=CATEGORY(pid_ind(1):pid_ind(end));
     val=VAL(pid_ind(1):pid_ind(end));
-    show=0;
     [lact,map,hr,urine,weight]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show);
-    close all;
+    if(length(lact(:,1))==1 && isnan(lact(1,1)))
+        warning(['No lactate measurements for subject: ' num2str(pid(m))])
+        continue
+    end
+    if(show)
+        MATLAB may hang if this is executed several times without pause
+        close all;
+    end
+    
+    
     if(isempty(urine) || isempty(map)|| isempty(lact)|| isempty(hr) || isempty(weight))
         warning(['Empty interpolated signals.'])
         lact_ind=strcmp(category,'LACTATE');
@@ -171,14 +179,15 @@ for m=65:M
         
     end
     
-end
-Npid_unprocessed=nansum(pid_unprocessed);
-if(Npid_unprocessed>0)
-    warning(['Unprocessed: ' num2str(Npid_unprocessed) ' patients!'])
+    if(~mod(m,1))
+        display(['Processed ' num2str(m) ' patients, out of ' num2str(M)])
+        %save(fname, 'lact_db','Ts','lact_measurements','column_names','varTH','n');
+    end
+    
 end
 
-save('lactate-kmeans-dataset.mat', 'lact_db','Ts','lact_measurements','column_names','varTH');
-display(['***Finished generating dataset, processed ' num2str(Nlact_check) ' lactate points from a total of: ' num2str(Nlact) '!!'])
+save(fname, 'lact_db','Ts','lact_measurements','column_names','varTH');
+display(['***Finished generating dataset, processed ' num2str(Nlact_check) ' lactate points from a total of: ' num2str(NlactTotal) '!!'])
 display(['***Number of unused lactate points= ' num2str(Nlact_removed)])
 display(['***Number of unique subjects=' num2str(length(unique(lact_db(:,1))))])
 display(['***Number of lact measurements=' num2str(length(lact_db(:,1)))])
