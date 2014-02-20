@@ -247,8 +247,8 @@ LactateData as (
       or c.category like '%LOS%'
 )
 -- Select out the per-apatient attributed that are important
-select distinct subject_id, codes, IABP, CABG, LVAD, RVAD from LactateData order by subject_id;
-,
+--select distinct subject_id, codes, IABP, CABG, LVAD, RVAD from LactateData order by subject_id;
+--,
 -- Final selection formats the data into a time series format.
 select subject_id, category, val,
        extract(day from tm) ||
