@@ -26,7 +26,7 @@ minLact as(
       group by subject_id, hadm_id
       )
    where LactN >= 3
-   and subject_id < 1000
+   --and subject_id < 1000
 )
 --select count(unique(pid)) from minLact; -- There are 8,990 unique patients with 10,304 hoptial admissions. 
 ,
@@ -42,6 +42,7 @@ select *
   and icud.subject_id = s.pid
   and icud.hadm_id = s.hid
   and s.hid is not null
+  and hospital_first_flg = 'Y'
   and ICUSTAY_FIRST_SERVICE = 'CSRU'
 )
 --select * from cohort;
@@ -53,7 +54,8 @@ select *
 -- 'cabg' (coronary bypass graft), IABP (intra aortic balloon pump), RUAD (right ventricular assistance device),
 -- LUAD (left ventricular assistance device)
 dis_Cond as (
-  select s.subject_id, s.hadm_id, --category,
+select subject_id, hadm_id, max(CABG) as CABG, max(IABP) as IABP, max(RVAD) as RVAD, max(LVAD) as LVAD from (
+  select distinct s.subject_id, s.hadm_id, --category,
     case when (
       ((lower(n.text) like '%cabg%' or lower(n.text) like '%coronary bypass graft%') and lower(n.category) like 'discharge_summary') 
       or 
@@ -73,8 +75,11 @@ dis_Cond as (
   where n.subject_id = s.subject_id
     and n.hadm_id = s.hadm_id
     and p.subject_id = s.subject_id
-    and p.hadm_id = s.hadm_id            
+    and p.hadm_id = s.hadm_id     
+    )
+    group by subject_id, hadm_id
 )
+--select * from dis_Cond;
 --select count(1) from dis_Cond where RVAD = 1; --71
 --select count(1) from dis_Cond where LVAD = 1; --81
 --select count(1) from dis_Cond where IABP = 1; --1048
@@ -220,10 +225,10 @@ CombinedParams as (
   select subject_id, category, valuenum, to_date(charttime, 'DD-MM-YYYY') as charttime
     from pressor_data
 )
-select * from CombinedParams;
+--select * from CombinedParams;
 ,
 
--- Only get variables within the first 4 days of ICU admission
+-- Only get variables within the first 5 days of ICU admission
 LactateData as (
   select s.subject_id as subject_id, s.hadm_id as hadm_id,
           c.valuenum as val, category,
@@ -236,7 +241,7 @@ LactateData as (
     left join dis_Cond d        on d.subject_id = s.subject_id and d.hadm_id = s.hadm_id
         
    where c.charttime >= s.icustay_intime
-     and c.charttime - s.icustay_intime <= INTERVAL '4' day
+     and c.charttime - s.icustay_intime <= INTERVAL '5' day
       or c.charttime is null
       or c.category like '%SURVIVAL%'
       or c.category like '%LOS%'
