@@ -67,9 +67,10 @@ NlactTotal=sum(~lact_ind);
 display(['***Generating dataset for ' num2str(NlactTotal) ' lactate measurements.'])
 Nlact_check=0; %Use as double check on how many lactate values we process
 Nlact_removed=0;
-show=1; %Set this to true to display interpolate waveforms (need to be on debug mode)
 
-for m=6:10
+show=0; %Set this to true to display interpolate waveforms (need to be on debug mode)
+
+for m=1:M
 
     pid_ind=find(pid==id(m));
     if(isempty(pid_ind))
@@ -88,6 +89,11 @@ for m=6:10
         continue
     end    
     
+    if(show)
+        %Use show=1 with a debugger set at the line below to view the
+        %estimated time series for each patient
+        close all
+    end
     if(isempty(urine) || isempty(map)|| isempty(lact)|| isempty(hr) || isempty(weight))
         warning(['Empty interpolated signals.'])
         lact_ind=strcmp(category,'LACTATE');
@@ -186,6 +192,3 @@ display(['***Finished generating dataset, processed ' num2str(Nlact_check) ' lac
 display(['***Number of unused lactate points= ' num2str(Nlact_removed)])
 display(['***Number of unique subjects=' num2str(length(unique(lact_db(:,1))))])
 display(['***Number of lact measurements=' num2str(length(lact_db(:,1)))])
-
-
-
