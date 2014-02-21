@@ -28,8 +28,13 @@ b=ones(nb,1)./nb;
 for n=1:NvarName
     
     ind=strcmp(category,varLabels{n});
+    if(ind==0)
+        %No data for this time series, continue
+        eval([outVarName{n} '=[NaN NaN];'])
+        continue
+    end
+    
     x=[tm(ind) val(ind)];
-    x=sortrows(x,1);
     del=find(isnan(x(:,1))==1);
     if~(isempty(del))
         x(del,:)=[];
@@ -46,11 +51,11 @@ for n=1:NvarName
     [Nx,~]=size(x);
     
     if(Nx>1)
+        x=sortrows(x,1);
         %Average any points measue at the same time
         diff_tm=diff(x(:,1));
         ind_rep=find(diff_tm==0);
         if(~isempty(ind_rep))
-            warning(['Found ' num2str(length(ind_rep)) ' repeated points in ' varLabels{n}])
             if(isUrine)
                 %In urine case, sum the points together instead of
                 %averaging
@@ -61,10 +66,10 @@ for n=1:NvarName
                 %Remove the repeats
                 del=find(isnan(x(:,2))==1);
                 x(del,:)=[];
-            else 
+            else
                 %For other series, take the approximate average
                 %(this will be biased towards the last sample)
-                 for reps=1:length(ind_rep)
+                for reps=1:length(ind_rep)
                     x(ind_rep+1,2)=mean(x(ind_rep+1,2)+x(ind_rep,2));
                     x(ind_rep,2)=NaN;
                 end
@@ -83,13 +88,20 @@ for n=1:NvarName
         end
         
         %Interpolate waveforms
-        y=[x(1,1):Ts:x(end,1)]';
-        y(:,2)=interp1(x(:,1),x(:,2),y,'linear');
-        [Ny,~]=size(y);
-        if((Ny+1)> (length(b)*3))
-            %Filter the waveforms through a moving average
-            %filtfilt only works for cases where Ny is 3x filter order
-            y(:,2)=filtfilt(b,1,y(:,2));
+        [Nx,~]=size(x);
+        if(Nx==0)
+            y=[NaN NaN];
+        elseif(Nx==1)
+            y=x;
+        else
+            y=[x(1,1):Ts:x(end,1)]';
+            y(:,2)=interp1(x(:,1),x(:,2),y,'linear');
+            [Ny,~]=size(y);
+            if((Ny+1)> (length(b)*3))
+                %Filter the waveforms through a moving average
+                %filtfilt only works for cases where Ny is 3x filter order
+                y(:,2)=filtfilt(b,1,y(:,2));
+            end
         end
     else
         if(Nx==1)

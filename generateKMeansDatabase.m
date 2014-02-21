@@ -68,6 +68,9 @@ display(['***Generating dataset for ' num2str(NlactTotal) ' lactate measurements
 Nlact_check=0; %Use as double check on how many lactate values we process
 Nlact_removed=0;
 
+%Update list of unique patients
+id=unique(pid);
+M=length(id);
 show=0; %Set this to true to display interpolate waveforms (need to be on debug mode)
 
 for m=1:M
@@ -180,7 +183,7 @@ for m=1:M
         
     end
     
-    if(~mod(m,1))
+    if(~mod(m,20))
         display(['Processed ' num2str(m) ' patients, out of ' num2str(M)])
         %save(fname, 'lact_db','Ts','lact_measurements','column_names','varTH','n');
     end
