@@ -82,7 +82,7 @@ for m=6:10
     tm=(tm-tm(1)).*24;
     category=CATEGORY(pid_ind(1):pid_ind(end));
     val=VAL(pid_ind(1):pid_ind(end));
-    [lact,map,hr,urine,weight]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show);
+    [lact,map,hr,urine,weight] = getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show);
     if(length(lact(:,1))==1 && isnan(lact(1,1)))
         warning(['No lactate measurements for subject: ' num2str(pid(m))])
         continue
