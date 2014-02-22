@@ -1,4 +1,4 @@
-function [ndb]=normalizeKMeans(db,feat_ind,lact_ind,lact_dx_ind)
+function [lact_dist,lact_dx_dist,feature_dist]=getDistanceMatrix(db,feat_ind,lact_ind,lact_dx_ind)
 %Normalize db
 %Each row is a sample and each column a feature
 
@@ -16,6 +16,7 @@ K=length(id);
 F=M-feat_ind;
 
 %Initialize feature distance matrix
+feature_dist=cell(F,1);
 for f=0:F
     eval(['feature' num2str(f) '=zeros(N,N)+NaN;'])
 end
@@ -40,36 +41,6 @@ for n=1:N
     end
 end
 
-%TODO: find mutual information between each feature and error 
-% or linear correlation? Will have to explore some examples manually
-Dl=lact_dist(:)-nanmean(lact_dist(:));
-Dl=nan./nanstd(Dl);
-
-Dldx=lact_dx_dist(:)-nanmean(lact_dx_dist(:));
-Dldx=Dldx./nanstd(Dldx);
-
-D=sqrt(Dl+Dldx);
-
-save test
-deb=1;
-
-% Q=20; %number of quantiles
-% %Map that converts from raw value to quantile range
-% QMAP=zeros(Q,M)+NaN;
-% %Apply quantile transformation to the features
-% for m=feat_ind:M
-%     quants=quantile(db(:,m),Q);
-%     QMAP(:,m)=quants;
-%     for n=1:N
-%         [~,qind]=min(abs(db(n,m)-quants));
-%         if(~isempty(qind) && qind ~=0)
-%             ndb(n,m)=qind;
-%         else
-%             ndb(n,m)=NaN;
-%         end
-%     end
-% end
-%Also normlize the absolute lactate value
-
-
-deb=1;
+for f=0:F
+    eval(['feature_dist(' num2str((f+1))  ')={feature' num2str(f) '};'])
+end

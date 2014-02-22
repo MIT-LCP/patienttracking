@@ -1,30 +1,59 @@
 %Script for predicting patient lactate value usign K-means
 clear all;close all;clc
 
-%The database is expected to have the input features start at the 4th
-%column until the end. The first 4 colums are pid, tm, lact, and lact
-%derivative
-%The dataset will contain the following features:
-%pid, sampled time, lactate value, lactate rate of change, acceleration , map value, map rate of change, acceleration,
-%hr value, hr rate of change, acceleration, urine value, urine rate of change, acceleration all measurements are from 
-%the interpolated series and tm is from the lactate series (though the other measurements should be within a 1/T
 
-feat_offset=6;
-lact_ind=3; %Lactate values are locaed in this column
-load lactate-dataset-Ts01-waveform
-%Only keep urine output variance
+%The dataset, lact_db, will contain the features described by the variable
+%'column_names, all measurements are from the interpolated series.
+%The database is expected to have the input features starting after
+%'lact_dxx' 
 
+load lactate-kmeans-dataset
+
+%Normalize Urine by weight (apply quotient rule to derivative)
+urine_ind=find(strcmp(column_names,'urine_val')==1);
+weight_ind=find(strcmp(column_names,'weight_val')==1);
+urine_dx_ind=find(strcmp(column_names,'urine_dx')==1);
+weight_dx_ind=find(strcmp(column_names,'weight_dx')==1);
+lact_db(:,urine_ind)=lact_db(:,urine_ind)./lact_db(:,weight_ind);
+
+urine_dx=lact_db(:,urine_dx_ind);
+weigth_dx=lact_db(:,weight_dx_ind);
+
+urine_dx= ( urine_dx.*lact_db(:,weight_ind) - lact_db(:,urine_ind).*weigth_dx)./(lact_db(:,weight_ind).^2);
+lact_db(:,urine_dx_ind)=urine_dx;
+
+%For now only use these columns (other features will be discarded
+use_col={'pid','tm','lact_val','lact_dx','map_val','map_dx','hr_val','hr_dx','urine_val','urine_dx'};
+Ncol=length(use_col);
+del=[1:length(column_names)];
+for n=1:Ncol
+    ind=find(strcmp(column_names,use_col{n})==1);
+    del(ind)=NaN;
+end
+del(isnan(del))=[];
+if(~isempty(del))
+        column_names(del)=[];
+        lact_db(:,del)=[];
+end
+
+feat_offset=find(strcmp(column_names,'lact_dx')==1)+1;
+lact_ind=find(strcmp(column_names,'lact_val')==1); %Lactate values are locaed in this column
+lact_dx_ind=find(strcmp(column_names,'lact_dx')==1); %Lactate values are locaed in this column
 pid=unique(lact_db(:,1));
 N=length(pid);
-Ntrain=3; %Number of initial training samples
-
-
+Ntrain=19; %Number of samples used for calibration
 
 %Loop throught patients using leave-one-out xvalidatation
 %Onlys predict patients with at least 4 lactate measurements
 %because first 3 points are used for calibration
 data=[];
 P=zeros(N,2); %per subject correlation coefficient
+
+%Pre compute all the distance matrices, this can take a long time!
+%when testing the individual patient, remove the row/column from the
+%list!ee
+[lact_dist,lact_dx_dist,feature_dist]=getDistanceMatrix(db,feat_ind,lact_ind,lact_dx_ind);
+
 for n=19:N
     
     select_pid=find(lact_db(:,1)==pid(n));
@@ -32,7 +61,7 @@ for n=19:N
     lact_points=lact_measurements{select_pid}; %Get actual lactate measurements
     Nselect=length(lact_points(:,1));
     Nx=length(x(:,1));
-    if(Nselect<20)%(Ntrain+1))
+    if(Nselect<(Ntrain+1))
         continue
     end
     
@@ -40,11 +69,8 @@ for n=19:N
     tmp_db=lact_db;
     tmp_db(select_pid,:)=[]; %As a test case, should give very good results if commented out
     
-    %Normalize db so its has zero mean and unit variance
-    %First 3 columns are assumed to be PID, LACT, LACT DERIV
-    %So that the real input features starts from feat_offsetth column
-    
-    [tmp_db(:,feat_offset:end),umean,ustd,v]=normalizeKMeans(tmp_db(:,feat_offset:end));
+    %Normalize database features for K-means prediction
+    [tmp_db,umean]=normalizeKMeans(tmp_db(1:200,:),feat_offset,lact_ind,lact_dx_ind);
     
     %Apply same transformations to test data
     %x(:,feat_offset:end)=x(:,feat_offset:end)-repmat(umean,[Nx 1]);
