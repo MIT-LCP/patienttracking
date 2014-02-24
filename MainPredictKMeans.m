@@ -52,7 +52,10 @@ P=zeros(N,2); %per subject correlation coefficient
 %Pre compute all the distance matrices, this can take a long time!
 %when testing the individual patient, remove the row/column from the
 %list!ee
-[lact_dist,lact_dx_dist,feature_dist]=getDistanceMatrix(db,feat_ind,lact_ind,lact_dx_ind);
+[lact_dist,lact_dx_dist,feature_dist]=getDistanceMatrix(lact_db,feat_offset,lact_ind,lact_dx_ind);
+
+save cache
+return
 
 for n=19:N
     
