@@ -12,6 +12,10 @@ for n=1:length(header)
     eval([header{n} '=C{:,n};'])
 end
 
+%Remove double quotest from data
+CATEGORY=strrep(CATEGORY,'"','');
+TM=strrep(TM,'"','');
+
 %Load meta data
 fname='./lactatePatientData.csv';
 fid_in=fopen(fname,'r');
@@ -126,6 +130,7 @@ for m=1:M
     
     sampTmH=[hr(1,1):Ts:hr(end,1)];
     hr_hat=interp1(hr(:,1),hr(:,2),sampTmH,'linear');
+    
     
     sampTmM=[map(1,1):Ts:map(end,1)];
     map_hat=interp1(map(:,1),map(:,2),sampTmM,'linear');
