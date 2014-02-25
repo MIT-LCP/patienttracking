@@ -25,6 +25,7 @@ NvarName=length(varLabels);
 
 nb=round(0.5/Ts); %Filter waveforms with half an hour moving average
 b=ones(nb,1)./nb;
+xraw=[];
 for n=1:NvarName
     
     ind=strcmp(category,varLabels{n});
@@ -49,6 +50,9 @@ for n=1:NvarName
         isUrine=0; %set flag for false, this is not urine series
     end
     [Nx,~]=size(x);
+    if(show)
+        xraw=x;
+    end
     
     if(Nx>1)
         x=sortrows(x,1);
@@ -117,10 +121,12 @@ for n=1:NvarName
     eval([outVarName{n} '=y;'])
     if(show)
         figure
-        plot(x(:,1),x(:,2),'-o')
+        plot(xraw(:,1),xraw(:,2),'o','LineWidth',2)
         hold on;grid on
+        plot(x(:,1),x(:,2),'g','LineWidth',2)
         plot(y(:,1),y(:,2),'r')
         title(outVarName{n})
+        legend('Raw Data','Median & Linear Fit','Final Interpolated Series (Hourly Averaged)')
     end
 end
 for n=1:nargout

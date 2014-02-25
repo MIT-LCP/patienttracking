@@ -3,12 +3,16 @@ function [id,pid,category,val,tm] = loadSQLData()
 %Loads data from the SQL query 
 fname='./lactateTimeData.csv';
 fid_in=fopen(fname,'r');
-C=textscan(fid_in,'%d %q %f %s','delimiter', ',','HeaderLines',1);
+C=textscan(fid_in,'%d %s %f %s','delimiter', ',','HeaderLines',1);
 fclose(fid_in);
 header={'pid','category','val','tm'};
 for n=1:length(header)
     eval([header{n} '=C{:,n};'])
 end
+
+%Remove double quotest from data
+category=strrep(category,'"','');
+tm=strrep(tm,'"','');
 
 %Load meta data
 fname='./lactatePatientData.csv';
