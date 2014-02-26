@@ -33,7 +33,7 @@ lact_measurements={};
 %in order to remove outliers. Thresholds set to NaN will be ignored
 %Keep all the lactate values, at least for now
 varTH=zeros(NvarName,2)+NaN; %First column is LB, second is UP
-th=0.0; %Use 2% threshold on each tail
+th=0.02; %Use 2% threshold on each tail
 %TODO: may want  to use different threshold for urine
 for n=1:NvarName
     if(~strcmp(varLabels{n},'LACTATE'))
