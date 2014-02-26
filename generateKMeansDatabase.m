@@ -71,7 +71,7 @@ Nlact_removed=0;
 %Update list of unique patients
 id=unique(pid);
 M=length(id);
-show=1; %Set this to true to display interpolate waveforms (need to be on debug mode)
+show=0; %Set this to true to display interpolate waveforms (need to be on debug mode)
 
 for m=1:M
 
@@ -190,7 +190,7 @@ for m=1:M
     
 end
 
-%save(fname, 'lact_db','Ts','lact_measurements','column_names','varTH');
+save(fname, 'lact_db','Ts','lact_measurements','column_names','varTH');
 display(['***Finished generating dataset, processed ' num2str(Nlact_check) ' lactate points from a total of: ' num2str(NlactTotal) '!!'])
 display(['***Number of unused lactate points= ' num2str(Nlact_removed)])
 display(['***Number of unique subjects=' num2str(length(unique(lact_db(:,1))))])
