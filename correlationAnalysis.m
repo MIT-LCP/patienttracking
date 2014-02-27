@@ -74,9 +74,10 @@ M=length(id);
 show=0; %Set this to true to display interpolate waveforms (need to be on debug mode)
 
 
-corr_mat = zeros(M, 1);
-lags_mat=zeros(M,1);
-xcorr_mat=zeros(M,1);
+%columns: urine, hr, map
+corr_mat = zeros(M, 3);
+lags_mat=zeros(M,3);
+xcorr_mat=zeros(M,3);
 
 
 for m=1:M
@@ -94,44 +95,54 @@ for m=1:M
     val=VAL(pid_ind(1):pid_ind(end));
     [lact,map,hr,urine,weight]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show);
     
+    variables={urine, hr, map};
+    
     try
-        [C,LAGS] = xcorr(lact(:,2),urine(:,2));
-        [max_value, index] = max(abs(C(:)));
-        lag=LAGS(index);
-        lags_mat(m)=lag;
-        xcorr_mat(m)=C(index);
+        
+        for i=1:length(variables)
+        
+            variable=cell2mat(variables(i));
+            
+            %do cross correlation between lactate and urine
+            %find the maximum value of correlation and the lag associated with
+            %it and set to lags_mat and xcorr_mat
+            [C,LAGS] = xcorr(lact(:,2),variable(:,2));
+            [max_value, index] = max(abs(C(:)));
+            lag=LAGS(index);
+            lags_mat(m,i)=lag;
+            xcorr_mat(m,i)=C(index);
 
-           
-        min_x = max(urine(1,1), lact(1,1));
-        max_x = min(urine(end,1), lact(end,1));
+            %for correlation coefficient need to make sure samples are same length   
+            min_x = max(variable(1,1), lact(1,1));
+            max_x = min(variable(end,1), lact(end,1));
 
-        lact(lact(:,1) <= min_x | lact(:,1) > max_x,:) = []; 
-        urine(urine(:,1) <= min_x | urine(:,1) > max_x,:) = []; 
+            newlact=lact(:,:);
+            newlact(lact(:,1) <= min_x | lact(:,1) > max_x,:) = []; 
+            variable(variable(:,1) <= min_x | variable(:,1) > max_x,:) = []; 
 
-        %make sure that time samples are also same size
-        urine(urine(:,1) <= min_x | urine(:,1) > max_x,:) = [];
-        lact(lact(:,1) <= min_x | lact(:,1) > max_x,:) = [];
+    %         figure
+    %         hold on;
+    %         plot(lact(:,1),lact(:,2),'r'); 
+    %         plot(lact(:,1), urine(:,2), 'b');
 
-%         figure
-%         hold on;
-%         plot(lact(:,1),lact(:,2),'r'); 
-%         plot(lact(:,1), urine(:,2), 'b');
+            if length(newlact(:,2)) > length(variable(:,2))
+                newlact(1:(length(newlact(:,2)) - length(variable(:,2))),:) = [];
+            elseif length(variable(:,2)) > length(newlact(:,2))
+                variable(1:(length(variable(:,2)) - length(newlact(:,2))),:) = [];
+            end
 
-        if length(lact(:,2)) > length(urine(:,2))
-            lact(1:(length(lact(:,2)) - length(urine(:,2))),:) = [];
-        elseif length(urine(:,2)) > length(lact(:,2))
-            urine(1:(length(urine(:,2)) - length(lact(:,2))),:) = [];
-        end
+            %compute the correlation and p-values
+            [r, p] = corrcoef([newlact(:,2) variable(:,2)]);   
 
-        %compute the correlation and p-values
-        [r, p] = corrcoef([lact(:,2) urine(:,2)]);   
-
-        % Save the correlation coefficient IF the p value is less than 0.01
-        if p(1, 2) < 0.01
-            corr_mat(m) = r(1, 2);
+            % Save the correlation coefficient IF the p value is less than 0.01
+            if p(1, 2) < 0.01
+                corr_mat(m,i) = r(1, 2);
+            end
         end
     catch 
+            
     end
+ 
 
     
     %___________________________
@@ -149,7 +160,6 @@ for m=1:M
         short_urine_Tm=urine(1:new_end,1);
         one_hour=reshape(short_urine_Tm,time,new_end/time);
         new_time=one_hour(1,:);
-        
         
         %reshape urine into columns of 100 time samples
         %(1hr) and then take the variance for each column
@@ -169,4 +179,5 @@ close all
     
 end
 
-%hist(corr_mat(corr_mat~=0));
+
+
