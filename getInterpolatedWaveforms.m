@@ -1,4 +1,4 @@
-function varargout=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show)
+function varargout=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show,average_window)
 %
 % waveforms= getInterpolatedWaveforms(varLabels,category)
 %
@@ -23,7 +23,11 @@ function varargout=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarN
 
 NvarName=length(varLabels);
 
-nb=round(0.5/Ts); %Filter waveforms with half an hour moving average
+%Average window in units of hour
+if(isempty(average_window))
+    average_window=0.5;
+end
+nb=round(average_window/Ts); %Filter waveforms with half an hour moving average
 b=ones(nb,1)./nb;
 xraw=[];
 for n=1:NvarName
@@ -123,10 +127,11 @@ for n=1:NvarName
         figure
         plot(xraw(:,1),xraw(:,2),'o','LineWidth',2)
         hold on;grid on
-        plot(x(:,1),x(:,2),'g','LineWidth',2)
-        plot(y(:,1),y(:,2),'r')
+        plot(y(:,1),y(:,2),'r','LineWidth',2)
         title(outVarName{n})
-        legend('Raw Data','Median & Linear Fit','Final Interpolated Series (Hourly Averaged)')
+        legend('Raw Data','Interpolated Series')
+        xlabel('Time (hours')
+        ylabel('Measurement Values')
     end
 end
 for n=1:nargout

@@ -15,7 +15,8 @@ M=length(id);
 outVarName={'lact','map','hr','urine','weight'};
 varLabels={'LACTATE','MAP','HR','URINE','WEIGHT'};
 NvarName=length(outVarName);
-fname='lactate-kmeans-dataset.mat'; %File name that will be created
+average_window=24; %Define average window length in units of hour for smoothing the interpolated time series
+fname=['lactate-kmeans-dataset- ' num2str(average_window) 'hours-smoothed.mat']; %File name that will be created
 
 %The dataset used for k-means will contain following features described
 %each in column (these values are interpolated for all waveforms, sampled
@@ -86,7 +87,7 @@ for m=1:M
     tm=(tm-tm(1)).*24;
     category=CATEGORY(pid_ind(1):pid_ind(end));
     val=VAL(pid_ind(1):pid_ind(end));
-    [lact,map,hr,urine,weight]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show);
+    [lact,map,hr,urine,weight]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show,average_window);
     if(length(lact(:,1))==1 && isnan(lact(1,1)))
         warning(['No lactate measurements for subject: ' num2str(pid(m))])
         continue
@@ -190,7 +191,7 @@ for m=1:M
     
 end
 
-save(fname, 'lact_db','Ts','lact_measurements','column_names','varTH');
+save(fname,'lact_db','Ts','lact_measurements','column_names','varTH');
 display(['***Finished generating dataset, processed ' num2str(Nlact_check) ' lactate points from a total of: ' num2str(NlactTotal) '!!'])
 display(['***Number of unused lactate points= ' num2str(Nlact_removed)])
 display(['***Number of unique subjects=' num2str(length(unique(lact_db(:,1))))])
