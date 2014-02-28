@@ -30,7 +30,7 @@ end
 % See if this is essentially the same as the cohort that has CABG
 ind = strcmp(CATEGORY, 'PRESSOR_TIME_MINUTES');
 setWithPress = unique(PID(ind));
-setWithCABG = unique(MID(ind));
+set with 
 
 
 % Elimate patients with IABP, LVAD, and RVAD

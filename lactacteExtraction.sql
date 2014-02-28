@@ -26,7 +26,7 @@ minLact as(
       group by subject_id, hadm_id
       )
    where LactN >= 3
-   --and subject_id < 1000
+   and subject_id < 1000
 )
 --select count(unique(pid)) from minLact; -- There are 8,990 unique patients with 10,304 hoptial admissions. 
 ,
