@@ -15,7 +15,8 @@ M=length(id);
 outVarName={'lact','map','hr','urine','weight'};
 varLabels={'LACTATE','MAP','HR','URINE','WEIGHT'};
 NvarName=length(outVarName);
-fname='lactate-kmeans-dataset.mat'; %File name that will be created
+average_window=24; %Define average window length in units of hour for smoothing the interpolated time series
+fname=['lactate-kmeans-dataset- ' num2str(average_window) 'hours-smoothed.mat']; %File name that will be created
 
 %The dataset used for k-means will contain following features described
 %each in column (these values are interpolated for all waveforms, sampled
@@ -73,7 +74,6 @@ id=unique(pid);
 M=length(id);
 show=0; %Set this to true to display interpolate waveforms (need to be on debug mode)
 
-
 %columns: urine, hr, map
 corr_mat = zeros(M, 3);
 lags_mat=zeros(M,3);
@@ -93,9 +93,9 @@ for m=1:M
     tm=(tm-tm(1)).*24;
     category=CATEGORY(pid_ind(1):pid_ind(end));
     val=VAL(pid_ind(1):pid_ind(end));
-    [lact,map,hr,urine,weight]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show);
+    [lact,map,hr,urine,weight]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show,average_window);
     
-    variables={urine, hr, map};
+    variables={urine};
     
     try
         
@@ -148,33 +148,33 @@ for m=1:M
     %___________________________
     
     %plotting variance of urine and lactate using 1,5,10 hr bins
-
-    hours=[1,5,10];
-%     figure
-    
-    for hour=1:length(hours)
-        time=100*hours(hour);
-    
-        %cut times so it is exactly in hours
-        new_end=floor(length(urine(:,1))/time)*time;
-        short_urine_Tm=urine(1:new_end,1);
-        one_hour=reshape(short_urine_Tm,time,new_end/time);
-        new_time=one_hour(1,:);
-        
-        %reshape urine into columns of 100 time samples
-        %(1hr) and then take the variance for each column
-        urine_short=urine(1:new_end,2);
-        reshaped_urine=reshape(urine_short,time,new_end/time);
-        var_urine=var(reshaped_urine);
-        
-       
-        %plot both variances over time on the same graph
-%         subplot(3,1,hour);
-%         hold on;
-%         plot(new_time,var_urine,'b');
-%         plot(lact(:,1),lact(:,2),'r');
-%         title([num2str(hours(hour))]);
-    end
+% 
+%     hours=[1,5,10];
+% %     figure
+%     
+%     for hour=1:length(hours)
+%         time=100*hours(hour);
+%     
+%         %cut times so it is exactly in hours
+%         new_end=floor(length(urine(:,1))/time)*time;
+%         short_urine_Tm=urine(1:new_end,1);
+%         one_hour=reshape(short_urine_Tm,time,new_end/time);
+%         new_time=one_hour(1,:);
+%         
+%         %reshape urine into columns of 100 time samples
+%         %(1hr) and then take the variance for each column
+%         urine_short=urine(1:new_end,2);
+%         reshaped_urine=reshape(urine_short,time,new_end/time);
+%         var_urine=var(reshaped_urine);
+%         
+%        
+%         %plot both variances over time on the same graph
+% %         subplot(3,1,hour);
+% %         hold on;
+% %         plot(new_time,var_urine,'b');
+% %         plot(lact(:,1),lact(:,2),'r');
+% %         title([num2str(hours(hour))]);
+%     end
 close all
     
 end
