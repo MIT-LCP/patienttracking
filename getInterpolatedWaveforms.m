@@ -27,8 +27,12 @@ NvarName=length(varLabels);
 if(isempty(average_window))
     average_window=0.5;
 end
-nb=round(average_window/Ts); %Filter waveforms with half an hour moving average
-b=ones(nb,1)./nb;
+if(average_window==0)
+    b=1;
+else
+    nb=round(average_window/Ts); %Filter waveforms with half an hour moving average
+    b=ones(nb,1)./nb;
+end
 xraw=[];
 for n=1:NvarName
     
@@ -108,7 +112,9 @@ for n=1:NvarName
             if((Ny+1)> (length(b)*3))
                 %Filter the waveforms through a moving average
                 %filtfilt only works for cases where Ny is 3x filter order
-                y(:,2)=filtfilt(b,1,y(:,2));
+                if(length(b) ~=1)
+                 y(:,2)=filtfilt(b,1,y(:,2));
+                end
             end
         end
     else
