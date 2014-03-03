@@ -30,8 +30,19 @@ end
 % See if this is essentially the same as the cohort that has CABG
 ind = strcmp(CATEGORY, 'PRESSOR_TIME_MINUTES');
 setWithPress = unique(PID(ind));
-set with 
+setWithCABG = unique(MID(ind));
 
+http://www.webmd.com/baby/external-cephalic-version-version-for-breech-position
+4) TODO: Look at the baseline characteristics (age, etc) of those patients with either a + or - correlation coefficient. --MARZYEH
+
+9) TODO: Add to the report the distribution of pressor usage in the CABG, IABP, RVAD, LVAD. --MARZYEH
+
+%------------------------
+% MG ANalysis 1:
+% Cluster the patients (histogram) based on the sum of the minutes of 
+% vassopressor time in their entire stay and save to a mat file with a 
+% per SID column and then a cluster ID.
+%------------------------
 
 % Elimate patients with IABP, LVAD, and RVAD
 % Only look at those patietns with CABG
