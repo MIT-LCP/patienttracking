@@ -26,7 +26,7 @@ minLact as(
       group by subject_id, hadm_id
       )
    where LactN >= 3
-   and subject_id < 1000
+   --and subject_id < 1000
 )
 --select count(unique(pid)) from minLact; -- There are 8,990 unique patients with 10,304 hoptial admissions. 
 ,
@@ -230,7 +230,7 @@ CombinedParams as (
 
 -- Only get variables within the first 5 days of ICU admission
 LactateData as (
-  select s.subject_id as subject_id, s.hadm_id as hadm_id,
+  select s.subject_id as subject_id, s.hadm_id as hadm_id, s.icustay_admit_age, s.icustay_first_careunit,
           c.valuenum as val, category,
           c.charttime - s.icustay_intime as tm, c.charttime,
           s.icustay_intime, i.codes, d.IABP, d.CABG, d.LVAD, d.RVAD
@@ -247,7 +247,7 @@ LactateData as (
       or c.category like '%LOS%'
 )
 -- Select out the per-apatient attributed that are important
---select distinct subject_id, codes, IABP, CABG, LVAD, RVAD from LactateData order by subject_id;
+select distinct subject_id, icustay_admit_age, icustay_first_careunit, codes, IABP, CABG, LVAD, RVAD from LactateData order by subject_id;
 --,
 -- Final selection formats the data into a time series format.
 select subject_id, category, val,
