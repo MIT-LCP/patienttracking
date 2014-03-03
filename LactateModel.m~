@@ -1,7 +1,11 @@
-%Main entry point for analysis of the Lactate Project
+%------------------------
+% Main entry point for analysis of the Lactate Project
+%------------------------
+close all;
+clc;
+close all
 
-close all;clc;close all
-
+%------------------------
 %Load time series data
 fname='./lactateTimeData.csv';
 fid_in=fopen(fname,'r');
@@ -12,45 +16,71 @@ for n=1:length(header)
     eval([header{n} '=C{:,n};'])
 end
 
+%------------------------
 %Remove double quotest from data
 CATEGORY=strrep(CATEGORY,'"','');
 TM=strrep(TM,'"','');
 
+%------------------------
 %Load meta data
 fname='./lactatePatientData.csv';
 fid_in=fopen(fname,'r');
-C=textscan(fid_in,'%d %q %d %d %d %d','delimiter', ',','HeaderLines',1);
+C=textscan(fid_in,'%d %f %q %q %d %d %d %d','delimiter', ',','HeaderLines',1);
 fclose(fid_in);
-header={'MID','ICD9CODES','IABP','CABG','LVAD','RVAD'};
+header={'MID','AGE', 'ICU', 'ICD9CODES','IABP','CABG','LVAD','RVAD'};
 for n=1:length(header)
     eval([header{n} '=C{:,n};'])
 end
 
+%------------------------
 % Find all patients with a pressor noted.
 % See if this is essentially the same as the cohort that has CABG
-ind = strcmp(CATEGORY, 'PRESSOR_TIME_MINUTES');
-setWithPress = unique(PID(ind));
-setWithCABG = unique(MID(ind));
-
-http://www.webmd.com/baby/external-cephalic-version-version-for-breech-position
-4) TODO: Look at the baseline characteristics (age, etc) of those patients with either a + or - correlation coefficient. --MARZYEH
-
-9) TODO: Add to the report the distribution of pressor usage in the CABG, IABP, RVAD, LVAD. --MARZYEH
+pressDup = strcmp(CATEGORY, 'PRESSOR_TIME_MINUTES');
+idsWithPress = unique(PID(pressDup));
+press =  ismember(MID, idsWithPress);
 
 %------------------------
-% MG ANalysis 1:
+% MG Analysis 1a: Add to the report the distribution of pressor usage 
+% in the CABG, IABP, RVAD, LVAD.
+%------------------------
+fprintf(1, ['There are %d patients with a pressor used in the first 5 days in our cohort of %d.\n' ...
+            'Population with Pressor and CABG/Total CABG: %d/%d.\n' ...
+            'Population with Pressor and IABP/Total IABP: %d/%d.\n' ...
+            'Population with Pressor and LVAD/Total LVAD: %d/%d.\n' ...
+            'Population with Pressor and RVAD/Total RVAD: %d/%d.\n'], ...            
+            sum(press), length(press), sum(press & CABG), sum(CABG), ...
+            sum(press & IABP), sum(IABP), sum(press & LVAD), sum(LVAD), ...
+            sum(press & RVAD), sum(RVAD));
+
+%------------------------
+% MG Analysis 1b:
 % Cluster the patients (histogram) based on the sum of the minutes of 
 % vassopressor time in their entire stay and save to a mat file with a 
 % per SID column and then a cluster ID.
 %------------------------
+pressVal = double(VAL(pressDup));
+pressID = double(PID(pressDup));
+S = bsxfun(@eq, double(idsWithPress), pressID');
+minutesSum = S*pressVal;
+D = pdist(minutesSum, 'euclidean');     % Dstd = pdist(minutesSum,'seuclidean');
+Z = linkage(D', 'ward', 'euclidean');    % Links objects that are close together into binary clusters  
+CUTOFF = 0.3 * max(Z(:,3));             % Cutoff at 30% the maximum distance in the tree
+clusAssign = cluster(Z, 'criterion', 'distance', 'cutoff', CUTOFF);
+numClust = length(unique(clusAssign));
 
+figure;
+[h, t, ~] = dendrogram(Z, 0, 'colorthreshold', 0.3* max(Z(:,3)));
+set(h, 'LineWidth',2); set(gca, 'XTickLabel', [], 'XTick',[]);
+title('Clustered Groups');   
+       
+%------------------------
 % Elimate patients with IABP, LVAD, and RVAD
 % Only look at those patietns with CABG
-%MID((IABP+CABG+LVAD+RVAD)>0)=[];
 MID(~CABG) = [];
-ID=unique(MID);
-M=length(ID);
+ID =unique(MID);
+M = length(ID);
 
+%------------------------
 %Define sampling interal (in hour) for which we will
 %be interpolating the time series
 Ts=0.01;
@@ -253,5 +283,11 @@ hist(corr_mat);
 subplot(1, 2, 2);
 hist(corr_mat(corr_mat~=0));
 
+
+%------------------------
+% MG Analysis 2:
+% Look at the baseline characteristics (age, etc) of those patients with 
+% either a + or - correlation coefficient.
+%------------------------
 
 

@@ -1,23 +1,30 @@
-function [dist] = computeKeogh(x, y)
+function [dArr] = distanceMatrixCreation(allSeg, maxLength, r)
 
-for i = 1:length(feature_dist)
-    varDist = feature_dist{i}
+numSeg = size(allSeg, 1);
+numVar = size(allSeg, 2);
 
-    % Reference Signal
-    x1 = allSeg(j, :);    
-    U = repmat(max(x1(l)), numPeaks, 1); L = repmat(min(x1(l)), numPeaks, 1);          
-    dArr(j, :) = sum([(allSeg > U).* (allSeg - U) (allSeg < L).* (L - allSeg)]'.^2);
+% Get the search band
+band = floor(maxLength*r/2);
+l = bsxfun(@plus, repmat(-band:band, maxLength, 1)', 1:maxLength); 
+l(l>maxLength) = maxLength; l(l<1) = 1;  
 
-    LB_Keogh = sqrt(sum([(allSeg > U).* (allSeg - U) (allSeg < L).* (L - allSeg)]'.^2));
+dArr = zero(numSeg, numVar, numVar);
 
-    for k = j+1:numPeaks                       
+fprintf(1, 'Warping...\n');
 
-        % If there are no previous "real" DTW dist
-        if any(LB_Keogh(k) > d(j+1:k-1))
-            d(k) = min(d(LB_Keogh(k) > d(j+1:k-1)));
-        else
-            [d(k), ~] = dtw_mex(x1, allSeg(k, :), floor(lenPeaks*r));   
-        end
+tic;
+for i = 1:numSeg
+    for j = 1:numSig
+    
+        % Reference Signal
+        x1 = allSeg(j, :);    
+        U = repmat(max(x1(l)), numPeaks, 1); L = repmat(min(x1(l)), numPeaks, 1);          
+        dArr(j, :) = sum([(allSeg > U).* (allSeg - U) (allSeg < L).* (L - allSeg)]'.^2);
     end
-    dArr(j, :) = d;  
 end
+time = toc
+
+fprintf(1, '\n');
+
+% Reflect the matrix accross the diagonal (costs are symetric)
+dArr = dArr + dArr';

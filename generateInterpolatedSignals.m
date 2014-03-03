@@ -1,6 +1,8 @@
 %Generates the K-means dataset for patient searching
 %Based on Time series of MAP, Urine Ouput, Lactate, and HR
-clear all;close all;clc
+%clear all;close all;clc
+
+function [] = generateInterpolatedSignals(filename)
 
 [id,pid,CATEGORY,VAL,TM] = loadSQLData();
 
@@ -68,10 +70,10 @@ display(['***Generating dataset for ' num2str(NlactTotal) ' lactate measurements
 Nlact_check=0; %Use as double check on how many lactate values we process
 Nlact_removed=0;
 
-%Update list of unique patients
+% Update list of unique patients
 id=unique(pid);
 M=length(id);
-show=1; %Set this to true to display interpolate waveforms (need to be on debug mode)
+show = 1; %Set this to true to display interpolate waveforms (need to be on debug mode)
 
 for m=1:M
 
@@ -86,11 +88,16 @@ for m=1:M
     tm=(tm-tm(1)).*24;
     category=CATEGORY(pid_ind(1):pid_ind(end));
     val=VAL(pid_ind(1):pid_ind(end));
-    [lact,map,hr,urine,weight]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show,average_window);
+    [lact,map,hr,urine,weight] = getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show,average_window);
     close all;
+    
+    allSig(m, :) = [lact,map,hr,urine];
 end
+
+save(filename, 'allSig');
 
 display(['***Finished generating dataset, processed ' num2str(Nlact_check) ' lactate points from a total of: ' num2str(NlactTotal) '!!'])
 display(['***Number of unused lactate points= ' num2str(Nlact_removed)])
 display(['***Number of unique subjects=' num2str(length(unique(lact_db(:,1))))])
 display(['***Number of lact measurements=' num2str(length(lact_db(:,1)))])
+end

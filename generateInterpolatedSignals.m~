@@ -1,6 +1,8 @@
 %Generates the K-means dataset for patient searching
 %Based on Time series of MAP, Urine Ouput, Lactate, and HR
-clear all;close all;clc
+%clear all;close all;clc
+
+function [] = generateInterpolatedSignals(filename)
 
 [id,pid,CATEGORY,VAL,TM] = loadSQLData();
 
@@ -68,10 +70,10 @@ display(['***Generating dataset for ' num2str(NlactTotal) ' lactate measurements
 Nlact_check=0; %Use as double check on how many lactate values we process
 Nlact_removed=0;
 
-%Update list of unique patients
+% Update list of unique patients
 id=unique(pid);
 M=length(id);
-show=1; %Set this to true to display interpolate waveforms (need to be on debug mode)
+show = 1; %Set this to true to display interpolate waveforms (need to be on debug mode)
 
 for m=1:M
 
@@ -86,59 +88,16 @@ for m=1:M
     tm=(tm-tm(1)).*24;
     category=CATEGORY(pid_ind(1):pid_ind(end));
     val=VAL(pid_ind(1):pid_ind(end));
+    [lact,map,hr,urine,weight] = getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show,average_window);
+    close all;
     
-    [lact, map, hr, urine, weight] = getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show,average_window);
-    close all;        
-    
-    % Normalize urine by getting the closest weight in the past
-    urine = normalizeUrine(urine,weight);
-    
-    % Crop time series to the minimum ranges +- one hour
-    minTm=min([lact(1) map(1) hr(1) urine(1)])-1;
-    maxTm=min([lact(end,1) map(end,1) hr(end,1) urine(end,1)])+1;
-    for n=1:NvarName
-        if(~strcmp(outVarName{n},'weight'))
-            %Its ok if we just have one value of weight,so ignore it
-            eval(['cropTm=maxTm-' outVarName{n} '(:,1);'])
-            eval([outVarName{n} '(cropTm<0,:)=[];'])
-            eval(['cropTm=' outVarName{n} '(:,1)-minTm;'])
-            eval([outVarName{n} '(cropTm<0,:)=[];'])
-            eval(['[varSize,~]=size(' outVarName{n} ');'])
-            if(varSize==0)
-                warning([' Time series  ' outVarName{n} ' is outside range: ' num2str(minTm) ' - ' num2str(maxTm)])
-            end
-        end
-    end
-    
-    % Replace the lactate waveforms witht he raw lactate values. 
-    lact_ind=strcmp(category,'LACTATE');
-    Nlact_check=Nlact_check+sum(lact_ind);
-    lact_points=[tm(lact_ind) val(lact_ind)];
-    lact_points=sortrows(lact_points,1);
-    del=[];
-    del=find(isnan(lact_points(:,1))==1);
-    del=[del;find(lact_points(:,2)==0)];
-    del=[del;find(lact_points(:,1)<minTm)];
-    del=unique([del;find(lact_points(:,1)>maxTm)]);
-    if(~isempty(del))
-        if( lact_points(end,1)<minTm || lact_points(1,1)>maxTm)
-            warning(['Lactate outside the range values (' num2str(lact_points(1,1)) ' - ' ...
-                num2str(lact_points(end,1)) ' ) : ' num2str(minTm) ' - ' num2str(maxTm)])
-        end
-        lact_points(del,:)=[];
-        
-        warning(['Removing ' num2str(length(del)) ' lactate points.'])
-        Nlact_removed=Nlact_removed+length(length(del));
-    end
-    Nlact=length(lact_points(:,1));    
-    
-    % Interp lact, real lact, 
-    savedSig{m} = [lact, lact_points, map, hr, urine];
-
+    allSig(m, :) = [lact,map,hr,urine];
 end
 
+save(filename, 'allSig');
 
 display(['***Finished generating dataset, processed ' num2str(Nlact_check) ' lactate points from a total of: ' num2str(NlactTotal) '!!'])
 display(['***Number of unused lactate points= ' num2str(Nlact_removed)])
 display(['***Number of unique subjects=' num2str(length(unique(lact_db(:,1))))])
 display(['***Number of lact measurements=' num2str(length(lact_db(:,1)))])
+end
