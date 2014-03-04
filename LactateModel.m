@@ -5,6 +5,8 @@ close all;
 clc;
 close all
 
+pressorEval = 0;
+
 %------------------------
 %Load time series data
 fname='./lactateTimeData.csv';
@@ -65,13 +67,14 @@ if pressorEval == 1
     S = bsxfun(@eq, double(idsWithPress), pressID');
     minutesSum = S*pressVal;
     D = pdist(minutesSum, 'euclidean');     % Dstd = pdist(minutesSum,'seuclidean');
-    Z = linkage(D', 'ward', 'euclidean');    % Links objects that are close together into binary clusters  
-    CUTOFF = 0.3 * max(Z(:,3));             % Cutoff at 30% the maximum distance in the tree
+    Z = linkage(D);%, 'ward', 'euclidean');    % Links objects that are close together into binary clusters  
+    CUTOFF = 0.45 * max(Z(:,3));             % Cutoff at 30% the maximum distance in the tree
     clusAssign = cluster(Z, 'criterion', 'distance', 'cutoff', CUTOFF);
     numClust = length(unique(clusAssign));
 
     figure;
-    [h, t, ~] = dendrogram(Z, 0, 'colorthreshold', 0.3* max(Z(:,3)));
+    set(gcf, 'color', 'w'); 
+    [h, t, ~] = dendrogram(Z, 0, 'colorthreshold', 0.45* max(Z(:,3)));
     set(h, 'LineWidth',2); 
     set(gca, 'XTickLabel', [], 'XTick',[]);
     title('Clustered Groups');   
