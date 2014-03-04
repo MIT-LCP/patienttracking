@@ -34,6 +34,11 @@ for n=1:length(header)
     eval([header{n} '=C{:,n};'])
 end
 
+[CCU, CSRU, FICU, MICU, SICU] = deal(zeros(length(ICU), 1));
+CCU(strcmp(ICU, 'CCU')) = 1;
+CSRU(strcmp(ICU, 'CSRU')) = 1;
+MICU(strcmp(ICU, 'MICU') | strcmp(ICU, 'FICU')) = 1;
+SICU(strcmp(ICU, 'SICU')) = 1;  
 
 if pressorEval == 1
     %------------------------
@@ -42,7 +47,9 @@ if pressorEval == 1
     pressDup = strcmp(CATEGORY, 'PRESSOR_TIME_MINUTES');
     idsWithPress = unique(PID(pressDup));
     press =  ismember(MID, idsWithPress);
-
+    pressToInd = find(press == 1);
+    idsWithPress = unique(MID(press));
+    
     %------------------------
     % MG Analysis 1a: Add to the report the distribution of pressor usage 
     % in the CABG, IABP, RVAD, LVAD.
@@ -67,8 +74,8 @@ if pressorEval == 1
     S = bsxfun(@eq, double(idsWithPress), pressID');
     minutesSum = S*pressVal;
     D = pdist(minutesSum, 'euclidean');     % Dstd = pdist(minutesSum,'seuclidean');
-    Z = linkage(D);%, 'ward', 'euclidean');    % Links objects that are close together into binary clusters  
-    CUTOFF = 0.45 * max(Z(:,3));             % Cutoff at 30% the maximum distance in the tree
+    Z = linkage(D);                         % Links objects that are close together into binary clusters  
+    CUTOFF = 0.45 * max(Z(:,3));            % Cutoff at 45% the maximum distance in the tree
     clusAssign = cluster(Z, 'criterion', 'distance', 'cutoff', CUTOFF);
     numClust = length(unique(clusAssign));
 
@@ -78,12 +85,28 @@ if pressorEval == 1
     set(h, 'LineWidth',2); 
     set(gca, 'XTickLabel', [], 'XTick',[]);
     title('Clustered Groups');   
+    
+    fprintf(1, ['\tMedian Admitting Age\tCCU\tCSRU\tMICU\tSICU\n' ...
+                'No pressor use\t%0.1f\t%0.1f%%\t%0.1f%%\t%0.1f%%\t%0.1f%%\n' ...
+                'Pressor use\t%0.1f\t%0.1f%%\t%0.1f%%\t%0.1f%%\t%0.1f%%\n' ...
+                'Cluster 1 (%d patients with median of %d minutes)\t%0.1f\t%0.1f%%\t%0.1f%%\t%0.1f%%\t%0.1f%%\n' ...
+                'Cluster 2 (%d patients with median of %d minutes)\t%0.1f\t%0.1f%%\t%0.1f%%\t%0.1f%%\t%0.1f%%\n' ...
+                'Cluster 3 (%d patients with median of %d minutes)\t%0.1f\t%0.1f%%\t%0.1f%%\t%0.1f%%\t%0.1f%%\n'], ...            
+                median(AGE(~press)), 100*sum(CCU(~press))/sum(~press), 100*sum(CSRU(~press))/sum(~press), 100*sum(MICU(~press))/sum(~press), 100*sum(SICU(~press))/sum(~press), ...
+                median(AGE(press)), 100*sum(CCU(press))/sum(press), 100*sum(CSRU(press))/sum(press), 100*sum(MICU(press))/sum(press), 100*sum(SICU(press))/sum(press), ...
+                sum(clusAssign == 1), median(minutesSum(clusAssign == 1)), ...
+                median(AGE(pressToInd(clusAssign==1))), 100*sum(CCU(pressToInd(clusAssign==1)))/sum(clusAssign==1), 100*sum(CSRU(pressToInd(clusAssign==1)))/sum(clusAssign==1), 100*sum(MICU(pressToInd(clusAssign==1)))/sum(clusAssign==1), 100*sum(SICU(pressToInd(clusAssign==1)))/sum(clusAssign==1), ...
+                sum(clusAssign == 2), median(minutesSum(clusAssign == 2)), ...
+                median(AGE(pressToInd(clusAssign==2))), 100*sum(CCU(pressToInd(clusAssign==2)))/sum(clusAssign==2), 100*sum(CSRU(pressToInd(clusAssign==2)))/sum(clusAssign==2), 100*sum(MICU(pressToInd(clusAssign==2)))/sum(clusAssign==2), 100*sum(SICU(pressToInd(clusAssign==2)))/sum(clusAssign==2), ...
+                sum(clusAssign == 3), median(minutesSum(clusAssign == 3)), ...
+                median(AGE(pressToInd(clusAssign==3))), 100*sum(CCU(pressToInd(clusAssign==3)))/sum(clusAssign==3), 100*sum(CSRU(pressToInd(clusAssign==3)))/sum(clusAssign==3), 100*sum(MICU(pressToInd(clusAssign==3)))/sum(clusAssign==3), 100*sum(SICU(pressToInd(clusAssign==3)))/sum(clusAssign==3));
+                
 end
 
 %------------------------
 % Elimate patients with IABP, LVAD, and RVAD
 % Only look at those patietns with CABG
-MID(~CABG) = [];
+MID(~CABG) = []; AGE(~CABG) = []; CCU(~CABG) = []; CSRU(~CABG) = []; MICU(~CABG) = []; SICU(~CABG) = [];
 ID =unique(MID);
 M = length(ID);
 
