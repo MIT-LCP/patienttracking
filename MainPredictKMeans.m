@@ -7,7 +7,12 @@ clear all;close all;clc
 %The database is expected to have the input features starting after
 %'lact_dxx' 
 
-load lactate-kmeans-dataset
+%Compile  a set of cached files for feature extraction
+smooth_set=[0 6 12 24];
+
+for s=1:length(smooth_set)
+    
+eval(['lactate-kmeans-dataset-' num2str(smooth_set(s)) 'hours-smoothed.mat'])
 
 %Normalize Urine by weight (apply quotient rule to derivative)
 urine_ind=find(strcmp(column_names,'urine_val')==1);
@@ -40,6 +45,7 @@ feat_offset=find(strcmp(column_names,'lact_dx')==1)+1;
 lact_ind=find(strcmp(column_names,'lact_val')==1); %Lactate values are locaed in this column
 lact_dx_ind=find(strcmp(column_names,'lact_dx')==1); %Lactate values are locaed in this column
 pid=unique(lact_db(:,1));
+Nfeature=Ncol-feat_offset;
 N=length(pid);
 Ntrain=19; %Number of samples used for calibration
 
@@ -51,10 +57,23 @@ P=zeros(N,2); %per subject correlation coefficient
 
 %Pre compute all the distance matrices, this can take a long time!
 %when testing the individual patient, remove the row/column from the
-%list!ee
-[lact_dist,lact_dx_dist,feature_dist]=getDistanceMatrix(lact_db,feat_offset,lact_ind,lact_dx_ind);
+%list!
 
-save cache
+%Apply histogrm EQ to lactate values and feature offset
+hist_map={};
+[lact_db(:,lact_ind),lmap]=equalizeDistribution(lact_db(:,lact_ind),[]);
+hist_map(end+1)={lmap};
+for n=0:Nfeature-1
+    [lact_db(:,feat_offset+n),qmap]=equalizeDistribution(lact_db(:,feat_offset+n),[]);
+    hist_map(end+1)={qmap};
+end
+display(['Generating cache distance matrix'])
+[lact_dist,lact_dx_dist,feature_dist]=getDistanceMatrix(lact_db,feat_offset,lact_ind,lact_dx_ind);
+eval(['save cache-kmeans-' num2str(smooth_set(s)) 'hours.mat'])
+display(['Finished generating cache distance matrix for save cache-kmeans-' num2str(smooth_set(s)) 'hours.mat'])
+
+end %Of Cache generation 
+
 return
 
 for n=19:N
