@@ -16,7 +16,7 @@ outVarName={'lact','map','hr','urine','weight'};
 varLabels={'LACTATE','MAP','HR','URINE','WEIGHT'};
 NvarName=length(outVarName);
 average_window=24; %Define average window length in units of hour for smoothing the interpolated time series
-fname=['lactate-kmeans-dataset- ' num2str(average_window) 'hours-smoothed.mat']; %File name that will be created
+%fname=['lactate-kmeans-dataset- ' num2str(average_window) 'hours-smoothed.mat']; %File name that will be created
 
 %The dataset used for k-means will contain following features described
 %each in column (these values are interpolated for all waveforms, sampled
@@ -81,12 +81,13 @@ xcorr_mat=zeros(M,3);
 
 
 for m=1:M
-
+    
     pid_ind=find(pid==id(m));
     if(isempty(pid_ind))
         warning(['Skipping empty data from subject: ' num2str(id(m))])
         continue
     end
+    
     tm=TM(pid_ind(1):pid_ind(end));
     tm=cell2mat(tm);
     tm=datenum(tm(:,3:end),'HH:MM')+ num2str(tm(:,1)); %date num returns in days
@@ -95,13 +96,24 @@ for m=1:M
     val=VAL(pid_ind(1):pid_ind(end));
     [lact,map,hr,urine,weight]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show,average_window);
     
-    variables={urine};
+    variables={urine, hr, map};
+    categories={'URINE', 'HR', 'MAP'};
+    
+    %check if more than 6 lactate measurements
+    if sum(ismember(category,{'LACTATE'})) < 6
+        continue
+    end
     
     try
         
         for i=1:length(variables)
         
             variable=cell2mat(variables(i));
+            
+            %check if 6+ samples from variable you are looking at
+            if sum(ismember(category,categories(i))) < 6
+                continue
+            end
             
             %do cross correlation between lactate and urine
             %find the maximum value of correlation and the lag associated with
@@ -119,11 +131,11 @@ for m=1:M
             newlact=lact(:,:);
             newlact(lact(:,1) <= min_x | lact(:,1) > max_x,:) = []; 
             variable(variable(:,1) <= min_x | variable(:,1) > max_x,:) = []; 
-
-    %         figure
-    %         hold on;
-    %         plot(lact(:,1),lact(:,2),'r'); 
-    %         plot(lact(:,1), urine(:,2), 'b');
+% % 
+%             figure
+%             hold on;
+%             plot(newlact(:,1),newlact(:,2),'r'); 
+%             plot(variable(:,1), variable(:,2), 'b');
 
             if length(newlact(:,2)) > length(variable(:,2))
                 newlact(1:(length(newlact(:,2)) - length(variable(:,2))),:) = [];
@@ -175,7 +187,7 @@ for m=1:M
 % %         plot(lact(:,1),lact(:,2),'r');
 % %         title([num2str(hours(hour))]);
 %     end
-close all
+%close all
     
 end
 
