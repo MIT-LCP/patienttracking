@@ -49,27 +49,3 @@ Dldx=lact_dx_dist(:)-nanmean(lact_dx_dist(:));
 Dldx=Dldx./nanstd(Dldx);
 
 D=sqrt(Dl+Dldx);
-
-save test
-deb=1;
-
-% Q=20; %number of quantiles
-% %Map that converts from raw value to quantile range
-% QMAP=zeros(Q,M)+NaN;
-% %Apply quantile transformation to the features
-% for m=feat_ind:M
-%     quants=quantile(db(:,m),Q);
-%     QMAP(:,m)=quants;
-%     for n=1:N
-%         [~,qind]=min(abs(db(n,m)-quants));
-%         if(~isempty(qind) && qind ~=0)
-%             ndb(n,m)=qind;
-%         else
-%             ndb(n,m)=NaN;
-%         end
-%     end
-% end
-%Also normlize the absolute lactate value
-
-
-deb=1;

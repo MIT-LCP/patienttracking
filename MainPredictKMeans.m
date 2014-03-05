@@ -8,75 +8,83 @@ clear all;close all;clc
 %'lact_dxx' 
 
 %Compile  a set of cached files for feature extraction
-smooth_set=[0 6 12 24];
 
-for s=1:length(smooth_set)
-    
-eval(['lactate-kmeans-dataset-' num2str(smooth_set(s)) 'hours-smoothed.mat'])
 
-%Normalize Urine by weight (apply quotient rule to derivative)
-urine_ind=find(strcmp(column_names,'urine_val')==1);
-weight_ind=find(strcmp(column_names,'weight_val')==1);
-urine_dx_ind=find(strcmp(column_names,'urine_dx')==1);
-weight_dx_ind=find(strcmp(column_names,'weight_dx')==1);
-lact_db(:,urine_ind)=lact_db(:,urine_ind)./lact_db(:,weight_ind);
+%NOTE: The commented block of code below was generated previosly (takes a
+%very long time). So we just have to load the save cached file
 
-urine_dx=lact_db(:,urine_dx_ind);
-weigth_dx=lact_db(:,weight_dx_ind);
+%%%Begin Cache Section %%%%
+% smooth_set=[0 6 12 24];
+% for s=1:length(smooth_set)
+%     
+% eval(['load lactate-kmeans-dataset-' num2str(smooth_set(s)) 'hours-smoothed.mat'])
+% 
+% %Normalize Urine by weight (apply quotient rule to derivative)
+% urine_ind=find(strcmp(column_names,'urine_val')==1);
+% weight_ind=find(strcmp(column_names,'weight_val')==1);
+% urine_dx_ind=find(strcmp(column_names,'urine_dx')==1);
+% weight_dx_ind=find(strcmp(column_names,'weight_dx')==1);
+% lact_db(:,urine_ind)=lact_db(:,urine_ind)./lact_db(:,weight_ind);
+% 
+% urine_dx=lact_db(:,urine_dx_ind);
+% weigth_dx=lact_db(:,weight_dx_ind);
+% 
+% urine_dx= ( urine_dx.*lact_db(:,weight_ind) - lact_db(:,urine_ind).*weigth_dx)./(lact_db(:,weight_ind).^2);
+% lact_db(:,urine_dx_ind)=urine_dx;
+% 
+% %For now only use these columns (other features will be discarded
+% use_col={'pid','tm','lact_val','lact_dx','map_val','map_dx','hr_val','hr_dx','urine_val','urine_dx'};
+% Ncol=length(use_col);
+% del=[1:length(column_names)];
+% for n=1:Ncol
+%     ind=find(strcmp(column_names,use_col{n})==1);
+%     del(ind)=NaN;
+% end
+% del(isnan(del))=[];
+% if(~isempty(del))
+%         column_names(del)=[];
+%         lact_db(:,del)=[];
+% end
+% 
+% feat_offset=find(strcmp(column_names,'lact_dx')==1)+1;
+% lact_ind=find(strcmp(column_names,'lact_val')==1); %Lactate values are locaed in this column
+% lact_dx_ind=find(strcmp(column_names,'lact_dx')==1); %Lactate values are locaed in this column
+% pid=unique(lact_db(:,1));
+% Nfeature=Ncol-feat_offset;
+% N=length(pid);
+% Ntrain=19; %Number of samples used for calibration
+% 
+% %Loop throught patients using leave-one-out xvalidatation
+% %Onlys predict patients with at least 4 lactate measurements
+% %because first 3 points are used for calibration
+% 
+% %Pre compute all the distance matrices, this can take a long time!
+% %when testing the individual patient, remove the row/column from the
+% %list!
+%
+% %Apply histogrm EQ to lactate values and feature offset
+% hist_map={};
+% [lact_db(:,lact_ind),lmap]=equalizeDistribution(lact_db(:,lact_ind),[]);
+% hist_map(end+1)={lmap};
+% for n=0:Nfeature-1
+%     [lact_db(:,feat_offset+n),qmap]=equalizeDistribution(lact_db(:,feat_offset+n),[]);
+%     hist_map(end+1)={qmap};
+% end
+% display(['Generating cache distance matrix'])
+% [lact_dist,lact_dx_dist,feature_dist]=getDistanceMatrix(lact_db,feat_offset,lact_ind,lact_dx_ind);
+% eval(['save cache-kmeans-' num2str(smooth_set(s)) 'hours.mat'])
+% display(['Finished generating cache distance matrix for save cache-kmeans-' num2str(smooth_set(s)) 'hours.mat'])
+% 
+% end %Of Cache generation
 
-urine_dx= ( urine_dx.*lact_db(:,weight_ind) - lact_db(:,urine_ind).*weigth_dx)./(lact_db(:,weight_ind).^2);
-lact_db(:,urine_dx_ind)=urine_dx;
+%%%End Cache Section %%%%
 
-%For now only use these columns (other features will be discarded
-use_col={'pid','tm','lact_val','lact_dx','map_val','map_dx','hr_val','hr_dx','urine_val','urine_dx'};
-Ncol=length(use_col);
-del=[1:length(column_names)];
-for n=1:Ncol
-    ind=find(strcmp(column_names,use_col{n})==1);
-    del(ind)=NaN;
-end
-del(isnan(del))=[];
-if(~isempty(del))
-        column_names(del)=[];
-        lact_db(:,del)=[];
-end
+load cache-kmeans-0hours.mat	
 
-feat_offset=find(strcmp(column_names,'lact_dx')==1)+1;
-lact_ind=find(strcmp(column_names,'lact_val')==1); %Lactate values are locaed in this column
-lact_dx_ind=find(strcmp(column_names,'lact_dx')==1); %Lactate values are locaed in this column
-pid=unique(lact_db(:,1));
-Nfeature=Ncol-feat_offset;
-N=length(pid);
-Ntrain=19; %Number of samples used for calibration
-
-%Loop throught patients using leave-one-out xvalidatation
-%Onlys predict patients with at least 4 lactate measurements
-%because first 3 points are used for calibration
-data=[];
-P=zeros(N,2); %per subject correlation coefficient
-
-%Pre compute all the distance matrices, this can take a long time!
-%when testing the individual patient, remove the row/column from the
-%list!
-
-%Apply histogrm EQ to lactate values and feature offset
-hist_map={};
-[lact_db(:,lact_ind),lmap]=equalizeDistribution(lact_db(:,lact_ind),[]);
-hist_map(end+1)={lmap};
-for n=0:Nfeature-1
-    [lact_db(:,feat_offset+n),qmap]=equalizeDistribution(lact_db(:,feat_offset+n),[]);
-    hist_map(end+1)={qmap};
-end
-display(['Generating cache distance matrix'])
-[lact_dist,lact_dx_dist,feature_dist]=getDistanceMatrix(lact_db,feat_offset,lact_ind,lact_dx_ind);
-eval(['save cache-kmeans-' num2str(smooth_set(s)) 'hours.mat'])
-display(['Finished generating cache distance matrix for save cache-kmeans-' num2str(smooth_set(s)) 'hours.mat'])
-
-end %Of Cache generation 
-
-return
-
-for n=19:N
+%TODO: should we break down the features into respective clusters ?
+[Ndb,Mdb]=size(lact_db);
+Nfeature=length(feature_dist);
+for n=1:N
     
     select_pid=find(lact_db(:,1)==pid(n));
     x=lact_db(select_pid,:); % x is data from the patient that we are trying to predict (should only use the first 3 columns, only during calibration)
@@ -89,7 +97,39 @@ for n=19:N
     
     %Generate temporary db without the patient info
     tmp_db=lact_db;
-    tmp_db(select_pid,:)=[]; %As a test case, should give very good results if commented out
+    tmp_db(select_pid,:)=tmp_db(select_pid,:).*NaN; %As a test case, should give very good results if commented out
+    
+    %Remove selected patient from the distance matrices
+    tmp_lact_dist=sqrt(lact_dist);
+    tmp_lact_dist(select_pid,:)=tmp_lact_dist(select_pid,:).*NaN;
+    tmp_lact_dist(:,select_pid)=tmp_lact_dist(:,select_pid).*NaN;
+    tmp_feat=feature_dist;
+    del=find(isnan(tmp_lact_dist)==1);
+    
+    for nf=1:Nfeature
+        tmpfeat=sqrt(feature_dist{nf});
+        tmpfeat(select_pid,:)=tmpfeat(select_pid,:).*NaN;
+        tmpfeat(:,select_pid)=tmpfeat(:,select_pid).*NaN;
+        feature_dist{nf}=tmpfeat;
+        del=[del ;find(isnan(tmpfeat)==1)];
+    end
+    
+    tmp_lact_dist(del)=[];
+    for nf=1:Nfeature
+        tmpfeat=feature_dist{nf};
+        tmpfeat(del)=[];
+        feature_dist{nf}=tmpfeat;
+%          %To view the histograms for each feature
+%          figure
+%         hist3([sqrt(tmp_lact_dist(1:10000))' tmpfeat(1:10000)'],[20 20])
+%         set(get(gca,'child'),'FaceColor','interp','CDataMode','auto');
+    end
+    
+   
+    
+    %TODO: Generate an estimate of a distance function based on the distance
+    %matrix. Figure out how to deal with interpolated series
+    
     
     %Normalize database features for K-means prediction
     [tmp_db,umean]=normalizeKMeans(tmp_db(1:200,:),feat_offset,lact_ind,lact_dx_ind);
