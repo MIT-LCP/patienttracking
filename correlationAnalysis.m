@@ -15,7 +15,7 @@ M=length(id);
 outVarName={'lact','map','hr','urine','weight'};
 varLabels={'LACTATE','MAP','HR','URINE','WEIGHT'};
 NvarName=length(outVarName);
-average_window=24; %Define average window length in units of hour for smoothing the interpolated time series
+average_window=12; %Define average window length in units of hour for smoothing the interpolated time series
 %fname=['lactate-kmeans-dataset- ' num2str(average_window) 'hours-smoothed.mat']; %File name that will be created
 
 %The dataset used for k-means will contain following features described
