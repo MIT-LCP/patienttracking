@@ -7,7 +7,8 @@ clear all;close all;clc
 %The database is expected to have the input features starting after
 %'lact_dxx'
 
-load lactate-kmeans-dataset-6hours-smoothed % 0.5 hours smoothed data, default
+%load lactate-kmeans-dataset-6hours-smoothed % 0.5 hours smoothed data, default
+load cache-128q-kmeans-0hours % 0.5 hours smoothed data, default
 lact_db_1=lact_db;        % Prefix with 1...beacause notation is messy with 0.5
 lact_measurements_1=lact_measurements;
 
@@ -66,16 +67,7 @@ lact_ind=find(strcmp(column_names,'lact_val')==1); %Lactate values are locaed in
 lact_dx_ind=find(strcmp(column_names,'lact_dx')==1); %Lactate values are locaed in this column
 pid=unique(lact_db_1(:,1));
 N=length(pid);
-Ntrain=10; %Number of samples used for calibration
 
-%Loop throught patients using leave-one-out xvalidatation
-%Onlys predict patients with at least 4 lactate measurements
-%because first 3 points are used for calibration
-data=[NaN NaN];
-
-for n=1:N
-    
-    select_pid=find(lact_db(:,1)==pid(n));
     LACT_HAT=[]; %stores prediction of each smoothed set
     lact_db=lact_db_1;
     for s=2:Nsmooth
@@ -83,12 +75,7 @@ for n=1:N
         eval(['tmp_lact_db=lact_db_' num2str(smooth_set(s)) ';'])
         lact_db=[lact_db tmp_lact_db(:,feat_offset:end)];
     end
-    lact_points=lact_measurements{select_pid}; %Get actual lactate measurements
-    Nselect=length(lact_points(:,1));
-    if(Nselect<(Ntrain+1))
-        continue
-    end
-    
+      
     %Replace each NaN in the input features by their mean
     M=length(lact_db(1,:));
     Nfeature=M-feat_offset;
@@ -101,31 +88,25 @@ for n=1:N
     end 
      
     %Generate temporary db without the patient info
-    x=lact_db(select_pid,:); % x is data from the patient that we are trying to predict (should only use the first 3 columns, only during calibration)
     tmp_db=lact_db;
     %tmp_db(select_pid,:)=[]; %As a test case, should give very good results if commented out
     
     
     %Train Neural Net
-    net = fitnet([300 5]);
+    net = fitnet([100 5]);
     net = configure(net,tmp_db(:,feat_offset:end)',tmp_db(:,lact_ind)');
     net.inputs{1}.processFcns={'mapstd','mapminmax'};
     [net,tr] = train(net,tmp_db(:,feat_offset:end)',tmp_db(:,lact_ind)');
     nntraintool
     %plotperform(tr)
     
-    lact_hat = net(x(:,feat_offset:end)');
+    %lact_hat = net(x(:,feat_offset:end)');
+    %lact_points=lact_measurements{select_pid}; %Get actual lactate measurements  
     %plotregression(tmp_db(:,lact_ind)',lact_hat)
-    
-    if(~isempty(lact_hat))
-        %Plot measured lactate, interpolated lacate, and prediction
-        plot(lact_points(:,1),lact_points(:,2),'bo','LineWidth',3,'MarkerSize',6);hold on;grid on
-            plot(lact_points(:,1),lact_hat)
-        title(['subject= ' num2str(pid(n))])    
-    end
-    
- 
-    
-end
-
-display(['Finished simulation!'])
+%     
+%     if(~isempty(lact_hat))
+%         %Plot measured lactate, interpolated lacate, and prediction
+%         plot(lact_points(:,1),lact_points(:,2),'bo','LineWidth',3,'MarkerSize',6);hold on;grid on
+%             plot(lact_points(:,1),lact_hat)
+%         title(['subject= ' num2str(pid(n))])    
+%     end

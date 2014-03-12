@@ -79,7 +79,7 @@ clear all;close all;clc
 
 %%%End Cache Section %%%%
 
-load cache-kmeans-0hours.mat	
+load cache-128q-kmeans-6hours.mat	
 
 %TODO: should we break down the features into respective clusters ?
 [Ndb,Mdb]=size(lact_db);
@@ -100,32 +100,51 @@ for n=1:N
     tmp_db(select_pid,:)=tmp_db(select_pid,:).*NaN; %As a test case, should give very good results if commented out
     
     %Remove selected patient from the distance matrices
-    tmp_lact_dist=sqrt(lact_dist);
+    tmp_lact_dist=lact_dist;
+    tmp_lact_dx_dist=lact_dx_dist;
     tmp_lact_dist(select_pid,:)=tmp_lact_dist(select_pid,:).*NaN;
     tmp_lact_dist(:,select_pid)=tmp_lact_dist(:,select_pid).*NaN;
-    tmp_feat=feature_dist;
-    del=find(isnan(tmp_lact_dist)==1);
+    tmp_lact_dx_dist(select_pid,:)=tmp_lact_dx_dist(select_pid,:).*NaN;
+    tmp_lact_dx_dist(:,select_pid)=tmp_lact_dx_dist(:,select_pid).*NaN;
     
+    del_ind=find(isnan(tmp_lact_dist)==1);
     for nf=1:Nfeature
         tmpfeat=sqrt(feature_dist{nf});
         tmpfeat(select_pid,:)=tmpfeat(select_pid,:).*NaN;
         tmpfeat(:,select_pid)=tmpfeat(:,select_pid).*NaN;
         feature_dist{nf}=tmpfeat;
-        del=[del ;find(isnan(tmpfeat)==1)];
+        del_ind=[del_ind ;find(isnan(tmpfeat)==1)];
     end
     
-    tmp_lact_dist(del)=[];
+    tmp_lact_dist(del_ind)=[];
+    tmp_lact_dx_dist(del_ind)=[];
+    tmp_lact_dist=sqrt(tmp_lact_dist);
+    
     for nf=1:Nfeature
         tmpfeat=feature_dist{nf};
-        tmpfeat(del)=[];
+        try
+        tmpfeat(del_ind)=[];
+        catch
+        deb=1;
+        end
         feature_dist{nf}=tmpfeat;
-%          %To view the histograms for each feature
-%          figure
-%         hist3([sqrt(tmp_lact_dist(1:10000))' tmpfeat(1:10000)'],[20 20])
-%         set(get(gca,'child'),'FaceColor','interp','CDataMode','auto');
     end
     
+    
+   %TODO: select only the smallest values for each patient
+   %Pick smallest indices from each subject 
    
+  %TODO: Implement NN described in 
+  %http://www.mathworks.com/help/nnet/examples/house-price-estimation.html?prodcode=NN&language=en#zmw57dd0e46
+   
+    
+     for nf=1:Nfeature
+        %To view the histograms for each feature
+        figure
+        hist3([tmp_lact_dist' feature_dist{nf}'],[20 20])
+        set(get(gca,'child'),'FaceColor','interp','CDataMode','auto');
+        deb=1;
+    end
     
     %TODO: Generate an estimate of a distance function based on the distance
     %matrix. Figure out how to deal with interpolated series
@@ -157,7 +176,7 @@ for n=1:N
     figure
     plot(x(:,2),x(:,3),'LineWidth',3);hold on;grid on
     plot(lact_points(:,1),lact_points(:,2),'ro','LineWidth',3,'MarkerSize',6)
-    plot(x(:,2)+Nb*Ts, Fkallman_lact_hat,'k') %Shift by filter delay
+    plot(x(:,2)+Nb*Ts, Fkallman_lact_hat,'k') %Shift by filter say
 
 end
 

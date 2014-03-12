@@ -7,7 +7,7 @@ clear all;close all;clc
 %The database is expected to have the input features starting after
 %'lact_dxx'
 
-load lactate-kmeans-dataset% 0.5 hours smoothed data, default
+load lactate-kmeans-dataset-0hours-smoothed % 0.5 hours smoothed data, default
 lact_db_1=lact_db;        % Prefix with 1...beacause notation is messy with 0.5
 lact_measurements_1=lact_measurements;
 
