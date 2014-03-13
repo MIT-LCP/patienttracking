@@ -18,7 +18,7 @@ function varargout=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarN
 % example below:
 %
 % %Example 1:
-% outVarName={'lact','map','hr','urine'};
+% outVarName={'lact','map','hr','urine','weight','pressor'};
 %[lact,map,hr,urine]=getInterpolatedWaveforms(varLabels,category,Ts,outVarName);
 
 NvarName=length(varLabels);
@@ -29,6 +29,7 @@ if(isempty(average_window))
 end
 if(average_window==0)
     b=1;
+    nb=1;
 else
     nb=round(average_window/Ts); %Filter waveforms with half an hour moving average
     b=ones(nb,1)./nb;
@@ -51,9 +52,12 @@ for n=1:NvarName
     isUrine=1; %Urine requires special attention.
     if(~strcmp(varLabels{n},'URINE'))
         %Remove cases where value is zero for all time series except urine
-        del=find(x(:,2)==0);
-        if(~isempty(del))
-            error(['Time series has zeros values : ' varLabels{n}])
+        %and pressors
+        if(~strcmp(varLabels{n},'PRESSOR_TIME_MINUTES'))
+            del=find(x(:,2)==0);
+            if(~isempty(del))
+                error(['Time series has zeros values : ' varLabels{n}])
+            end
         end
         isUrine=0; %set flag for false, this is not urine series
     end
@@ -109,11 +113,12 @@ for n=1:NvarName
             y=[x(1,1):Ts:x(end,1)]';
             y(:,2)=interp1(x(:,1),x(:,2),y,'linear');
             [Ny,~]=size(y);
-            if((Ny+1)> (length(b)*3))
+            if((Ny+1)> (nb*3))
                 %Filter the waveforms through a moving average
                 %filtfilt only works for cases where Ny is 3x filter order
-                if(length(b) ~=1)
-                 y(:,2)=filtfilt(b,1,y(:,2));
+                if(nb ~=1)
+                    %TODO: Consider using FILTER instead
+                    y(:,2)=filtfilt(b,1,y(:,2));
                 end
             end
         end

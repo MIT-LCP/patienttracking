@@ -36,7 +36,7 @@ M=length(id);
 N=length(pid);
 db_remove_ind=[];
 for n=1:N
-    if(sum(pid(n)==id))
+    if(~sum(pid(n)==id))
         db_remove_ind(end+1)=n;
     end
 end

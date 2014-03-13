@@ -1,8 +1,5 @@
-
-
 package com.ikarosilva.pttrack;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -10,96 +7,106 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicLong;
 
 
-public class  DistanceMatrix implements Callable<Double>{
+public class  DistanceMatrix implements Callable<Boolean>{
 	private static final int MAX_THREADS=Runtime.getRuntime().availableProcessors();
-	private final int N,M;		//Total number of records
-	private final BlockingQueue<Integer> tasks;
-	private final HashMap<Integer,Integer> index;
-	private AtomicLong results;  //Keep track of processed records
-	private final double[][] database;
-
-	public DistanceMatrix(double[][] database) throws InterruptedException{
+	private final int N;		//Total number of records
+	private final BlockingQueue<Integer> queue;
+	private final double[] data;
+	private double[][] distance;
+	private final int threads;
+	private final int step;
+	public DistanceMatrix(double[] data, int th) throws InterruptedException{
 		//Set task queue 
-		N= database.length;
-		M=database[0].length;
-		tasks=new ArrayBlockingQueue<Integer>(N);
-		this.database=database;
-		index=new HashMap<Integer,Integer>();
-		Integer ind=0;
-		for(int n=0;n<N;n++){
-			tasks.put(n);
-			index.put(n,ind);
-			ind++;
+		N= data.length;
+		queue=new ArrayBlockingQueue<Integer>(N);
+		this.data=data;
+		distance=new double[N][N];
+		th=(th < 1) ? MAX_THREADS:th; //In case user enters negative or zero
+		threads=(th > MAX_THREADS) ? MAX_THREADS:th;
+
+		//Queue is the starting indices for of data for which each thread will be responsible for
+		step=N/threads;
+		int index=0;
+		for(int n=0;n<threads;n++){
+			queue.put(index);
+			index+=step;
 		}
+	}
+
+	public double[][] getDistanceMatrix(){
+		return distance;
 	}
 
 	public static int getNumberOfProcessors(){return MAX_THREADS;}
 
-	public  long getResults(){
-		return results.get();
+	public int getNumberOfThreads(){
+		return threads;
 	}
 
-	public HashMap<Integer,Integer> getIndexMap(){
-		return index;
-	}
-
-	public Double call(){
-		double fail=0.0;
+	public Boolean call(){
 		Integer taskInd;
-		//long id=Thread.currentThread().getId();
-		while ((taskInd = tasks.poll()) != null ){ 
-			//System.out.println("Thread [" + id + "]: Processing: " + taskInd);
-			//results[index.get(taskInd)]=compute(taskInd).clone();
-			fail = compute(taskInd);
+		//along id=Thread.currentThread().getId();
+		while ((taskInd = queue.poll()) != null ){ 
+			//System.err.println("Thread [" + id + "]: Processing: " + taskInd);
+			compute(taskInd);
 		}
-		return Double.valueOf(fail);
+		return true;
 	}
 
 
-	public double compute(Integer record){
-		//Execute command
-		double y = (Double) null; //standard error
-			y=0;
-		return y;
+	private void compute(int start){
+		//Computer distances of columns from start to end 
+		// for all rows
+		int end=((start+step)>(N-1)) ? (N-1):(start+step);
+		for(int row=start;row<end;row++){
+			for(int col=row+1;col<N;col++){
+				distance[row][col]=Math.pow(data[row]-data[col],2);
+				distance[col][row]=distance[row][col];
+			}
+		}
 	}
 
-	public long start() throws Exception{
+	public void start() throws Exception{
 		
-		DistanceMatrix map=null;
-		int threads= MAX_THREADS;
-		threads=(threads > MAX_THREADS) ? MAX_THREADS:threads;
-		threads=(threads < 1) ? MAX_THREADS:threads;
-		
-		ArrayList<Future<Double>> futures=
-				new ArrayList<Future<Double>>(threads);
+		ArrayList<Future<Boolean>> futures=
+				new ArrayList<Future<Boolean>>(threads);
 		ExecutorService executor= 
 				Executors.newFixedThreadPool(threads);
-
-		double fail=0;
+		System.err.println("Starting computation with : " + threads + " threads.");
 		try {
-			map = new DistanceMatrix(database);
-
 			for(int i=0;i<threads;i++){
-				Future<Double> future= executor.submit(map);
+				Future<Boolean> future= executor.submit(this);
 				futures.add(future);
 			}
-			for( Future<Double> future: futures){
-				fail =future.get();
-				if(fail>0)
+			for( Future<Boolean> future: futures){
+				if(future.get()==false)
 					System.err.println("Future computation failed:  " + future.toString());
 			}
-			results.addAndGet((long) fail);
 		} catch (InterruptedException e1) {
 			e1.printStackTrace();
 		} catch (ExecutionException e) {
 			e.printStackTrace();
 		} 
 		executor.shutdown();
-		//System.out.println("!!Done: Processed records: " + results.length);
-		return results.get();
+	}
+
+
+	public static void main(String[] args) throws Exception {
+		int N=10;
+		double[] data=new double[N];
+		for(int n=0;n<N;n++)
+			data[n]=Math.random();		
+		DistanceMatrix d=new DistanceMatrix(data,0);
+		d.start();
+		double[][] dist=d.getDistanceMatrix();
+		for(int n=0;n<N;n++){
+			for(int m=0;m<N;m++){
+				System.out.print(" " + dist[n][m] + " ");
+			}
+			System.out.println("");
+		}
 	}
 
 }
