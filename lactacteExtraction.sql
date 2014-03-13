@@ -3,7 +3,7 @@
 - Feb 12, 2014
 
 In this query we are using only patients whose first ICU stay service is
-of type CSRU, and who has at least 3 lactate measurements. The
+of type CSRU, and who has at least 5 lactate measurements. The
 variables being extracted are HR, MAP, urine output, and lactate.
 */
 
@@ -25,7 +25,7 @@ minLact as(
       where itemid=50010
       group by subject_id, hadm_id
       )
-   where LactN >= 3
+   where LactN >= 5
    --and subject_id < 1000
 )
 --select count(unique(pid)) from minLact; -- There are 8,990 unique patients with 10,304 hoptial admissions. 
@@ -33,37 +33,113 @@ minLact as(
 
 -- Get the overall cohort
 cohort as (
-select *
+select s.*, icud.*,
+      cs.congestive_heart_failure, cs.cardiac_arrhythmias, cs.valvular_disease,
+      cs.aids, cs.alcohol_abuse, cs.blood_loss_anemia, cs.chronic_pulmonary,
+      cs.coagulopathy, cs.deficiency_anemias, cs.depression,
+      cs.diabetes_complicated, cs.diabetes_uncomplicated, cs.drug_abuse,
+      cs.fluid_electrolyte, cs.hypertension, cs.hypothyroidism, cs.liver_disease,
+      cs.lymphoma, cs.metastatic_cancer, cs.obesity, cs.other_neurological,
+      cs.paralysis, cs.peptic_ulcer, cs.peripheral_vascular, cs.psychoses,
+      cs.pulmonary_circulation, cs.renal_failure, cs.rheumatoid_arthritis,
+      cs.solid_tumor, cs.weight_loss
+
   from minLact s,
-        mimic2v26.icustay_detail icud
-  where icustay_los >= (24*0)
-  and subject_icustay_seq = 1
-  and icustay_age_group = 'adult'
+       mimic2v26.icustay_detail icud,
+       mimic2v26.comorbidity_scores cs    
+      
+  where s.hid is not null
   and icud.subject_id = s.pid
   and icud.hadm_id = s.hid
-  and s.hid is not null
+  and s.pid = cs.subject_id
+  and s.hid = cs.hadm_id        
+  and icustay_los >= (24*0)
+  and subject_icustay_seq = 1  
+  and icustay_age_group = 'adult'  
   and hospital_first_flg = 'Y'
-  and ICUSTAY_FIRST_SERVICE = 'CSRU'
+  and ICUSTAY_FIRST_SERVICE = 'CSRU'  
 )
 --select * from cohort;
 --select count(distinct subject_id) from cohort; -- 1250
 --select count(1) from cohort; -- 1250
 ,
 
+-- Get the ICD9 Martin criteria for infection and sepsis in the overrall cohort
+sepsis as (
+select distinct i.subject_id,
+  case when (i.code like '038%' or
+             i.code like '020.0%' or
+             i.code like '790.7%' or
+             i.code like '117.9%' or
+             i.code like '112.5%' or
+             i.code like '112.81%')
+      Then 1
+      Else 0 End
+      as Infection,
+  case when (i.code in ('518.81','518.82','518.85','786.09','785.51','785.59','780.01','780.09')
+      or i.code like '799.1%'
+      or i.code like '458.0%'
+      or i.code like '785.5%'
+      or i.code like '458.8%'
+      or i.code like '458.9%'
+      or i.code like '796.3%'
+      or i.code like '584%'
+      or i.code like '580%'
+      or i.code like '585%'
+      or i.code like '570%'
+      or i.code like '572.2%'
+      or i.code like '573.3%'
+      or i.code like '286.2%'
+      or i.code like '286.6%'
+      or i.code like '286.9%'
+      or i.code like '287.3%'
+      or i.code like '287.4%'
+      or i.code like '287.5%'
+      or i.code like '276.2%'
+      or i.code like '293%'
+      or i.code like '348.1%'
+      or i.code like '348.3%'      
+      or p.itemid in
+        (select distinct itemid from mimic2v26.d_codeditems where (code like '967%' or code like '3995%' or code like '8914%') and type='PROCEDURE'))
+      Then 1 Else 0 End
+      as OrganFailure
+      
+      from mimic2v26.icd9 i,
+           mimic2v26.procedureevents p,
+           cohort s
+      
+      where s.pid = i.subject_id
+        and s.hid = i.hadm_id
+        and s.pid = p.subject_id   
+        and s.hid = p.hadm_id
+)
+--select count(1) from sepsis;
+,
+
+sepsisMax as (
+  select subject_id, max(infection) as infection, max(OrganFailure) as organfailure
+  from sepsis  
+  group by subject_id
+)
+--select count(1) from sepsisMax;
+,
+
 -- Flag patients with the following in the discharge summaries:
 -- 'cabg' (coronary bypass graft), IABP (intra aortic balloon pump), RUAD (right ventricular assistance device),
 -- LUAD (left ventricular assistance device)
 dis_Cond as (
-select subject_id, hadm_id, max(CABG) as CABG, max(IABP) as IABP, max(RVAD) as RVAD, max(LVAD) as LVAD from (
+select subject_id, hadm_id, max(CABG) as CABG, max(IABP) as IABP, max(CABG_DISCHARGE) as CABG_DISCHARGE, max(IABP_DISCHARGE) as IABP_DISCHARGE, max(RVAD) as RVAD, max(LVAD) as LVAD from (
   select distinct s.subject_id, s.hadm_id, --category,
     case when (
-      ((lower(n.text) like '%cabg%' or lower(n.text) like '%coronary bypass graft%') and lower(n.category) like 'discharge_summary') 
-      or 
+      ((lower(n.text) like '%cabg%' or lower(n.text) like '%coronary bypass graft%') and lower(n.category) like 'discharge_summary') ) 
+      then 1 else 0 end as CABG_DISCHARGE, 
+    case when (
       (p.itemid in (select distinct itemid from mimic2v26.d_codeditems where (code like '3611' or code like '3612' or code like '3613' or code like '3614') and type = 'PROCEDURE'))  )
       then 1 else 0 end as CABG,
     case when ( 
-        ((lower(n.text) like '%iabp%' or lower(n.text) like '%intra-aortic balloon pump%') and lower(n.category) like 'discharge_summary')
-        or 
+      ((lower(n.text) like '%iabp%' or lower(n.text) like '%intra-aortic balloon pump%') and lower(n.category) like 'discharge_summary') )
+      then 1 else 0 end as IABP_DISCHARGE,  
+    case when (
         (p.itemid in (select distinct itemid from mimic2v26.d_codeditems where (code like '3761') and type = 'PROCEDURE'))  )
       then 1 else 0 end as IABP,
     case when (lower(n.text) like '%rvad%' or lower(n.text) like '%right ventricular assistance device%') then 1 else 0 end as RVAD,
@@ -151,7 +227,13 @@ ChartedParams as (
             when c.itemid in (52, 6702) then
                 'MAP'
             when c.itemid in (581) then
-                'WEIGHT'
+                'WEIGHT'            
+            when c.itemid in (676, 677, 678, 679) then
+                'TEMPERATURE'  
+            when c.itemid in (814) then
+                'Hb'               
+           when c.itemid in (778) then
+                'PaCO2'                 
          end category,
          c.value1num valuenum
     from cohort s,
@@ -160,11 +242,17 @@ ChartedParams as (
      and c.itemid in (
          211,
          52, 6702,
-         581
+         581,
+         676, 677, 678, 679,
+         814,
+         778
          )
      and c.value1num is not null
 )
 --select * from ChartedParams;
+-- White blood cell count, respiration rate, and temperature to the time series data?
+-- Gender, Hb, HbMassBlood, Elixhauser Scores (not included)
+--   I am envisioning a time series at 0.01 of an hour based on interpolated values. 
 ,
 
 -- Pull out daily urine output
@@ -187,6 +275,10 @@ LabParams as (
          case
             when c.itemid in (50010) then
                 'LACTATE'
+            when c.itemid in (50383, 50007, 50184)  then 
+                'HbMassBlood'
+            when c.itemid in (50316, 50468)  then
+                'WBC'                
          end category,
          c.valuenum
     from cohort s,
@@ -194,7 +286,9 @@ LabParams as (
    where c.subject_id = s.subject_id
      --and c.hadm_id = s.hadm_id
      and c.itemid in (
-         50010
+         50010,
+         50383, 50007, 50184,
+         50316, 50468
          )
      and c.valuenum is not null
 )
@@ -206,6 +300,34 @@ WeightParams as (
     from cohort s
 )
 --select * from WeightParams;
+,
+
+VentilatedRespParams as (
+  select distinct s.subject_id, s.icustay_id, charttime,
+         'MECH_VENT_FLAG' as category,
+         1 as valuenum -- flag to indicate mechanical ventilation
+    from cohort s,
+         mimic2v26.chartevents c
+   where c.subject_id = s.subject_id
+     and c.itemid in (543, 544, 545, 619, 39, 535, 683, 720, 721, 722, 732)
+)
+--select * from 
+, 
+SpontaneousRespParams as (
+  select s.subject_id, s.icustay_id, charttime ,
+         'RESP' as category,
+         c.value1num as valuenum
+    from cohort s,
+         mimic2v26.chartevents c
+   where c.subject_id = s.subject_id
+     and c.itemid in (
+         615, 618) -- 3603 was for NICU, 614 spontaneous useless
+     and c.value1num is not null
+     and not exists (select 'X' 
+                      from VentilatedRespParams nv
+                     where nv.icustay_id = s.icustay_id
+                   ) --TODO: USE -1 FOR FORCED VENTILATION INSTEAD OF OMITTING
+)
 ,
 
 -- Union the tables.
@@ -224,21 +346,40 @@ CombinedParams as (
   UNION
   select subject_id, category, valuenum, to_date(charttime, 'DD-MM-YYYY') as charttime
     from pressor_data
+  UNION      
+  select subject_id, category, valuenum, charttime
+    from VentilatedRespParams
+  UNION
+  select subject_id, category, valuenum, charttime
+    from SpontaneousRespParams  
 )
 --select * from CombinedParams;
 ,
 
 -- Only get variables within the first 5 days of ICU admission
 LactateData as (
-  select s.subject_id as subject_id, s.hadm_id as hadm_id, s.icustay_admit_age, s.icustay_first_careunit,
-          c.valuenum as val, category,
-          c.charttime - s.icustay_intime as tm, c.charttime,
-          s.icustay_intime, i.codes, d.IABP, d.CABG, d.LVAD, d.RVAD
+  select  s.pid as subject_id, s.hid as hadm_id, s.icustay_admit_age, s.gender, -- basic stats
+          s.icustay_first_careunit, s.icustay_intime,                           -- ICU info
+          i.codes,                                                              -- ICD9 codes
+          d.IABP, d.CABG, d.IABP_DISCHARGE, d.CABG_DISCHARGE, d.LVAD, d.RVAD,   -- condition info
+          congestive_heart_failure, cardiac_arrhythmias, valvular_disease,      -- EH Scores
+          aids, alcohol_abuse, blood_loss_anemia, chronic_pulmonary,
+          coagulopathy, deficiency_anemias, depression,
+          diabetes_complicated, diabetes_uncomplicated, drug_abuse,
+          fluid_electrolyte, hypertension, hypothyroidism, liver_disease,
+          lymphoma, metastatic_cancer, obesity, other_neurological,
+          paralysis, peptic_ulcer, peripheral_vascular, psychoses,
+          pulmonary_circulation, renal_failure, rheumatoid_arthritis,
+          solid_tumor, weight_loss,          
+          m.infection, m.organfailure,                                           -- Sepsis counts          
+          c.valuenum as val, category,                                          -- Continuous info 
+          c.charttime - s.icustay_intime as tm, c.charttime         
           
     from cohort s
-    left join CombinedParams c  on c.subject_id = s.subject_id-- and c.hadm_id = s.hadm_id
-    left join codedata i        on i.subject_id = s.subject_id and i.hadm_id = s.hadm_id
-    left join dis_Cond d        on d.subject_id = s.subject_id and d.hadm_id = s.hadm_id
+    left join CombinedParams c  on c.subject_id = s.pid-- and c.hadm_id = s.hadm_id
+    left join codedata i        on i.subject_id = s.pid and i.hadm_id = s.hid
+    left join dis_Cond d        on d.subject_id = s.pid and d.hadm_id = s.hid
+    left join sepsisMax m       on m.subject_id = s.pid
         
    where c.charttime >= s.icustay_intime
      and c.charttime - s.icustay_intime <= INTERVAL '5' day
@@ -247,7 +388,20 @@ LactateData as (
       or c.category like '%LOS%'
 )
 -- Select out the per-apatient attributed that are important
-select distinct subject_id, icustay_admit_age, icustay_first_careunit, codes, IABP, CABG, LVAD, RVAD from LactateData order by subject_id;
+select distinct subject_id, icustay_admit_age, gender, icustay_first_careunit, 
+                codes, IABP, CABG, IABP_DISCHARGE, CABG_DISCHARGE, LVAD, RVAD,
+                congestive_heart_failure, cardiac_arrhythmias, valvular_disease,      -- EH Scores
+                aids, alcohol_abuse, blood_loss_anemia, chronic_pulmonary,
+                coagulopathy, deficiency_anemias, depression,
+                diabetes_complicated, diabetes_uncomplicated, drug_abuse,
+                fluid_electrolyte, hypertension, hypothyroidism, liver_disease,
+                lymphoma, metastatic_cancer, obesity, other_neurological,
+                paralysis, peptic_ulcer, peripheral_vascular, psychoses,
+                pulmonary_circulation, renal_failure, rheumatoid_arthritis,
+                solid_tumor, weight_loss                   
+  from LactateData 
+  order by subject_id;
+
 --,
 -- Final selection formats the data into a time series format.
 select subject_id, category, val,
