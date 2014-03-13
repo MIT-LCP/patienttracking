@@ -29,15 +29,15 @@ NdbOutVarName=length(dbOutVarName);
 %each in column (these values are interpolated for all waveforms, sampled
 % at the time the lactate measurement within Ts range).
 column_names={'pid','age','tm'};
-for ndb=1:NdbOutVarName
-    column_names(end+1)={[dbOutVarName{ndb} '_val']}; %Time series interpolated  value
-    column_names(end+1)={[dbOutVarName{ndb} '_dx']};  %Time seris rate of change
-    column_names(end+1)={[dbOutVarName{ndb} '_var']}; %Time series hourly variance
+for ndb:1:NdbOutVarName
+    column_names(end+1)={dbOutVarName{ndb} '_val'}; %Time series interpolated  value
+    column_names(end+1)={dbOutVarName{ndb} '_dx'};  %Time seris rate of change
+    column_names(end+1)={dbOutVarName{ndb} '_var'}; %Time series hourly varianc
 end
              
 %Time series derived data start at lact_val
 timeSeriesInd=find(strcmp(column_names,'lact_val')==1);
-Nc=length(column_names);
+Nc=length(column_names)-timeSeriesInd+1;
     
 %Smooothing window size (in hours)
 AVE_WIN=[0 1 2 6 12 24];
