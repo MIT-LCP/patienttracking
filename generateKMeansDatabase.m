@@ -21,7 +21,7 @@ NvarName=length(outVarName);
 
 %dbOutVarName is similar to outVarName, but includes time an augmented set
 %of timeseries directly derived from outVarName that will be included in
-%the final dataset. 
+%the final dataset.
 dbOutVarName={'lact','map','hr','urine','weight','pressor','ageNormalized_hr','cardiacOutput'};
 NdbOutVarName=length(dbOutVarName);
 
@@ -34,67 +34,69 @@ for ndb=1:NdbOutVarName
     column_names(end+1)={[dbOutVarName{ndb} '_dx']};  %Time seris rate of change
     column_names(end+1)={[dbOutVarName{ndb} '_var']}; %Time series hourly variance
 end
-             
+
 %Time series derived data start at lact_val
 timeSeriesInd=find(strcmp(column_names,'lact_val')==1);
 Nc=length(column_names);
-    
+
 %Smooothing window size (in hours)
 AVE_WIN=[0 1 2 6 12 24];
 NAVE=length(AVE_WIN);
 
 show=0; %Set this to true to display interpolate waveforms (need to be on debug mode)
+
+%Get thresholds for removing 5% tail distribution
+%in order to remove outliers. Thresholds set to NaN will be ignored
+%Keep all the lactate values, at least for now
+varTH=zeros(NvarName,2)+NaN; %First column is LB, second is UP
+th=0.02; %Use 2% threshold on each tail
+
+%TODO: may want  to use different threshold for urine
+for n=1:NvarName
+    if(~strcmp(varLabels{n},'LACTATE') && ~strcmp(varLabels{n},'PRESSOR_TIME_MINUTES'))
+        ind=cellfun(@isempty, strfind(CATEGORY,varLabels{n}));
+        %This is weird, but if you dont convert ind from logical to
+        %numerical array, you will get weird results when indexing
+        % back into val (ie, sum(VAL(ind(bad))<varTH(n,1)) != sum(VAL(ind)<varTH(n,1))
+        ind=find(ind==0);
+        [pdf,x]=hist(VAL(ind),length(VAL(ind)));
+        cdf=cumsum(pdf)./sum(pdf);
+        [~,LB_ind]=min(abs(cdf-th));
+        [~,UB_ind]=min(abs(cdf-(1-th)));
+        varTH(n,:)=[x(LB_ind) x(UB_ind)];
+        
+        %For Urine, ignore any LB
+        if(strcmp(varLabels{n},'URINE'))
+            varTH(n,1)=-inf;
+        end
+        %Remove values below LB and above UB
+        bad=[];
+        bad=[find(VAL(ind)<varTH(n,1)==1); find(VAL(ind)>varTH(n,2)==1)];
+        VAL(ind(bad))=[];
+        CATEGORY(ind(bad))=[];
+        TM(ind(bad))=[];
+        pid(ind(bad))=[];
+        warning(['Removed ' num2str(sum(bad)) ' outliers from ' varLabels{n}])
+    end
+end
+lact_ind=cellfun(@isempty, strfind(CATEGORY,'LACTATE'));
+NlactTotal=sum(~lact_ind);
+
 for nave=1:NAVE
     
     average_window=AVE_WIN(nave); %Define average window length in units of hour for smoothing the interpolated time series
     fname=['lactate-interpolated-dataset-' num2str(average_window) 'hours-smoothed.mat']; %File name that will be created
-    
-    
+      
     lact_db=zeros(0,Nc); %Matrix for storing the final dataset
     feature=zeros(0,Nc);  %temporary buffer
     raw_lact_measurements=[];%variable to store to raw lactate measurements to be predicted
     
-    %Get thresholds for removing 5% tail distribution
-    %in order to remove outliers. Thresholds set to NaN will be ignored
-    %Keep all the lactate values, at least for now
-    varTH=zeros(NvarName,2)+NaN; %First column is LB, second is UP
-    th=0.02; %Use 2% threshold on each tail
-    %TODO: may want  to use different threshold for urine
-    for n=1:NvarName
-        if(~strcmp(varLabels{n},'LACTATE') && ~strcmp(varLabels{n},'PRESSOR_TIME_MINUTES'))
-            ind=cellfun(@isempty, strfind(CATEGORY,varLabels{n}));
-            %This is weird, but if you dont convert ind from logical to
-            %numerical array, you will get weird results when indexing
-            % back into val (ie, sum(VAL(ind(bad))<varTH(n,1)) != sum(VAL(ind)<varTH(n,1))
-            ind=find(ind==0);
-            [pdf,x]=hist(VAL(ind),length(VAL(ind)));
-            cdf=cumsum(pdf)./sum(pdf);
-            [~,LB_ind]=min(abs(cdf-th));
-            [~,UB_ind]=min(abs(cdf-(1-th)));
-            varTH(n,:)=[x(LB_ind) x(UB_ind)];
-            
-            %For Urine, ignore any LB
-            if(strcmp(varLabels{n},'URINE'))
-                varTH(n,1)=-inf;
-            end
-            %Remove values below LB and above UB
-            bad=[];
-            bad=[find(VAL(ind)<varTH(n,1)==1); find(VAL(ind)>varTH(n,2)==1)];
-            VAL(ind(bad))=[];
-            CATEGORY(ind(bad))=[];
-            TM(ind(bad))=[];
-            pid(ind(bad))=[];
-            warning(['Removed ' num2str(sum(bad)) ' outliers from ' varLabels{n}])
-        end
-    end
-    lact_ind=cellfun(@isempty, strfind(CATEGORY,'LACTATE'));
-    NlactTotal=sum(~lact_ind);
     display(['***Generating dataset for ' num2str(NlactTotal) ' lactate measurements.'])
     Nlact_check=0; %Use as double check on how many lactate values we process
     Nlact_removed=0;
     
     %Update list of unique patients
-    if( M ~=length(unique(pid))) 
+    if( M ~=length(unique(pid)))
         error('pids do not match as expected')
     end
     
@@ -181,19 +183,19 @@ for nave=1:NAVE
             maxHr=220-AGE(m);
         else
             %MIMIC sets ages >90 to 200
-            maxHr=220-90; 
+            maxHr=220-90;
         end
         ageNormalized_hr=hr;
         ageNormalized_hr(:,2)=ageNormalized_hr(:,2)./maxHr;
         
-        %TODO: ADD Systemic Inflammatory Response Syndrome dection in here 
+        %TODO: ADD Systemic Inflammatory Response Syndrome dection in here
         % SIRS criteria according to Marino, pg 739 is at least 2 of the following:
         % 1) temperature > 38 or temperature < 36
         % 2) heart rate > 90 bpm
         % 3) respiratory rate > 20 bpm or arterial PCO2 < 32 mm Hg
         % 4) WBC count > 12,000/mm^3 or < 4000/mm^3 or > 10% immature
         % (band) forms
-      
+        
         %Generate cardiact output based on HR and MAP series
         %the cardiac output series is sampled at the HR series interval
         cardiacOutput=cardiac_output(hr,map);
@@ -201,7 +203,7 @@ for nave=1:NAVE
         %%% End of augementing time series %%%%
         
         
-        %Insert all time series for this patient into the data set 
+        %Insert all time series for this patient into the data set
         %with one row per sample time, and each column according to
         %column_names labels
         Nlact=length(lact_points(:,1));
@@ -216,7 +218,7 @@ for nave=1:NAVE
             empty_feature=0;
             for i=1:NdbOutVarName
                 eval(['x=' dbOutVarName{i} ';'])
-                [~,tmInd]=min(abs(x(:,1)-feature(2)));
+                [~,tmInd]=min(abs(x(:,1)-lact_points(k,1)));
                 if(isempty(tmInd))
                     warning(['Empty tmInd for signal: ' dbOutVarName{i} ' in subject= ' num2str(id(m))])
                     empty_feature=1;
@@ -224,9 +226,9 @@ for nave=1:NAVE
                 end
                 feature(feat_ind)=x(tmInd,2); %Get time series interpolated value
                 feat_ind=feat_ind+1;
-                feature(feat_ind)=getRateOfChange(feature(2),x);%Get time series derivative
+                feature(feat_ind)=getRateOfChange(lact_points(k,1),x);%Get time series derivative
                 feat_ind=feat_ind+1;
-                feature(feat_ind)=getHourlyVariance(feature(2),x);%Get time series derivative
+                feature(feat_ind)=getHourlyVariance(lact_points(k,1),x);%Get time series derivative
                 feat_ind=feat_ind+1;
             end
             if(~empty_feature)
@@ -244,7 +246,7 @@ for nave=1:NAVE
         end
         
     end
-    
+   
     save(fname,'lact_db','Ts','raw_lact_measurements','column_names','varTH');
     display(['***Finished generating dataset, processed ' num2str(Nlact_check) ' lactate points from a total of: ' num2str(NlactTotal) '!!'])
     display(['***Number of unused lactate points= ' num2str(Nlact_removed)])

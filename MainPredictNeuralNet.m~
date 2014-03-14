@@ -13,6 +13,7 @@ load lactate-interpolated-dataset-24hours-smoothed % 0.5 hours smoothed data, de
 %Load smoothed timed series prefix the variables accordingly
 smooth_set=fliplr([0 1 2 6 12 24]);  %higher values have less data
 lact_db_init=lact_db; %Load to get intial parameter settings
+feat_offset=find(strcmp(column_names,'map_val')==1);
 target=raw_lact_measurements;
 
 
@@ -41,10 +42,10 @@ end
 
 
 %For now only use these columns (other features will be discarded
-use_col={'map_val','map_dx','map_var','ageNormalized_hr_val','ageNormalized_hr_dx','ageNormalized_hr_var','urine_val','urine_dx',...
+use_col={'lact_val','map_val','map_dx','map_var','ageNormalized_hr_val','ageNormalized_hr_dx','ageNormalized_hr_var','urine_val','urine_dx',...
     'urine_var','weight_val','weight_dx','pressor_val','cardiacOutput_val','cardiacOutput_dx','cardiacOutput_var'};
 
-use_col={'map_val','ageNormalized_hr_val','urine_val','urine_var','weight_dx','pressor_val','cardiacOutput_val'};
+use_col={'lact_val','map_val','ageNormalized_hr_val','urine_val','urine_var','weight_dx','pressor_val','cardiacOutput_val'};
 %use_col=column_names;
 Ncol=length(use_col);
 del=[1:length(column_names)];
@@ -111,7 +112,7 @@ end
 
 %Train Neural Net
 net = fitnet([100 8]);
-net = configure(net,lact_db',target);
+net = configure(net,lact_db(:,feat_offset:',target);
 net.inputs{1}.processFcns={'mapstd','mapminmax'};
-[net,tr] = train(net,lact_db',target);
+[net,tr] = train(net,lact_db(:,feat_offset:end)',target);
 nntraintool
