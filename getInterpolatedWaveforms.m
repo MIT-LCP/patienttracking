@@ -52,11 +52,11 @@ for n=1:NvarName
     isUrine=1; %Urine requires special attention.
     if(~strcmp(varLabels{n},'URINE'))
         %Remove cases where value is zero for all time series except urine
-        %and pressors
-        if(~strcmp(varLabels{n},'PRESSOR_TIME_MINUTES'))
+        %and the ones in the if condition below
+        if(~strcmp(varLabels{n},'PRESSOR_TIME_MINUTES') && ~strcmp(varLabels{n},'MECH_VENT_FLAG'))
             del=find(x(:,2)==0);
-            if(~isempty(del))
-                error(['Time series has zeros values : ' varLabels{n}])
+            if(~isempty(del) && ~strcmp(varLabels{n},'PaCO2'))
+                warning(['Time series has zeros values : ' varLabels{n}])
             end
         end
         isUrine=0; %set flag for false, this is not urine series
@@ -118,7 +118,8 @@ for n=1:NvarName
                 %filtfilt only works for cases where Ny is 3x filter order
                 if(nb ~=1)
                     %TODO: Consider using FILTER instead
-                    y(:,2)=filtfilt(b,1,y(:,2));
+                    %y(:,2)=filtfilt(b,1,y(:,2));
+                    y(:,2)=filter(b,1,y(:,2));
                 end
             end
         end

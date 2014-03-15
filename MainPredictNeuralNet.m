@@ -42,9 +42,10 @@ end
 
 %For now only use these columns (other features will be discarded
 use_col={'map_val','map_dx','map_var','ageNormalized_hr_val','ageNormalized_hr_dx','ageNormalized_hr_var','urine_val','urine_dx',...
-    'urine_var','weight_val','weight_dx','pressor_val','cardiacOutput_val','cardiacOutput_dx','cardiacOutput_var'};
+    'urine_var','weight_val','weight_dx','pressor_val','cardiacOutput_val','cardiacOutput_dx','cardiacOutput_var'...
+    'hr_val','hr_dx','hr_var'};
 
-use_col={'map_val','ageNormalized_hr_val','urine_val','urine_var','weight_dx','pressor_val','cardiacOutput_val'};
+%use_col={'map_val','ageNormalized_hr_val','urine_val','urine_var','weight_dx','pressor_val','cardiacOutput_val'};
 %use_col=column_names;
 Ncol=length(use_col);
 del=[1:length(column_names)];
@@ -109,9 +110,20 @@ for nf=1:M
     end
 end
 
+
+% Create a Self-Organizing Map
+dimension1 = 15;
+dimension2 = 15;
+net = selforgmap([dimension1 dimension2]);
+% Train the Network
+[net,tr] = train(net,lact_db');
+
+% Test the Network
+outputs = net(lact_db');
+
 %Train Neural Net
-net = fitnet([100 8]);
-net = configure(net,lact_db',target);
+net = fitnet([50 5]);
+net = configure(net,outputs,target);
 net.inputs{1}.processFcns={'mapstd','mapminmax'};
-[net,tr] = train(net,lact_db',target);
+[net,tr] = train(net,outputs,target);
 nntraintool

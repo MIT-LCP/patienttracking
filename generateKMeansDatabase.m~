@@ -179,41 +179,19 @@ for nave=1:NAVE
         cardiacOutput=cardiac_output(hr,map);
         
         %Modulation envelope of selected signals
-        if(~isempty(map))
-            envelope_map=[map(:,1) abs(hilbert(map(:,2)))];
-        else
-            envelope_map=[NaN NaN];
-        end
-        
-        if(~isempty(hr))
-            envelope_hr=[hr(:,1) abs(hilbert(hr(:,2)))];
-        else
-            envelope_hr=[NaN NaN];
-        end
-        
+        envelope_map=[map(:,1) abs(hilbert(map(:,2)))];
+        envelope_hr=[hr(:,1) abs(hilbert(hr(:,2)))];
         if(~isempty(urine))
             envelope_urine=[urine(:,1) abs(hilbert(urine(:,2)))];
         else
             envelope_urine=[NaN NaN];
         end
-        
         if(~isempty(resp))
-            envelope_resp=[resp(:,1) abs(hilbert(resp(:,2)))];
-        else
-            envelope_resp=[NaN NaN];
-        end
+        envelope_resp=[resp(:,1) abs(hilbert(resp(:,2)))];
+        es
+        envelope_temp=[temp(:,1) abs(hilbert(temp(:,2)))];
+        envelope_cardiacOutput=[cardiacOutput(:,1) abs(hilbert(cardiacOutput(:,2)))];
         
-        if(~isempty(temp))
-            envelope_temp=[temp(:,1) abs(hilbert(temp(:,2)))];
-        else
-            envelope_temp=[NaN NaN];
-        end
-        
-        if(~isempty(cardiacOutput))
-            envelope_cardiacOutput=[cardiacOutput(:,1) abs(hilbert(cardiacOutput(:,2)))];
-        else
-            envelope_cardiacOutput=[NaN NaN];
-        end
         %%% End of augementing time series %%%%
         
         
@@ -261,7 +239,7 @@ for nave=1:NAVE
         
     end
     
-    save(fname,'lact_db','Ts','raw_lact_measurements','column_names','commorbidityVal','commorbidityNames');
+    save(fname,'lact_db','Ts','raw_lact_measurements','column_names','varTH','commorbidityVal','commorbidityNames');
     display(['***Finished generating dataset, processed ' num2str(Nlact_check) ' lactate points from a total of: ' num2str(NlactTotal) '!!'])
     display(['***Number of unused lactate points= ' num2str(Nlact_removed)])
     display(['***Number of unique subjects=' num2str(length(unique(lact_db(:,1))))])
