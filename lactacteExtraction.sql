@@ -6,7 +6,6 @@ In this query we are using only patients whose first ICU stay service is
 of type CSRU, and who has at least 5 lactate measurements. The
 variables being extracted are HR, MAP, urine output, and lactate.
 */
-
 -- ICD9 codes
 with CODEDATA AS (
  SELECT C.SUBJECT_ID, C.HADM_ID, LISTAGG(C.CODE, ';') WITHIN GROUP (ORDER BY C.SEQUENCE) AS CODES
@@ -25,7 +24,7 @@ minLact as(
       where itemid=50010
       group by subject_id, hadm_id
       )
-   where LactN >= 5
+   where LactN >= 3
    --and subject_id < 1000
 )
 --select count(unique(pid)) from minLact; -- There are 8,990 unique patients with 10,304 hoptial admissions. 
@@ -100,7 +99,7 @@ select distinct i.subject_id,
       or i.code like '348.1%'
       or i.code like '348.3%'      
       or p.itemid in
-        (select distinct itemid from mimic2v26.d_codeditems where (code like '967%' or code like '3995%' or code like '8914%') and type='PROCEDURE'))
+        (select distinct itemid from mimic2v26.d_codeditems where (trim(code) like '967%' or trim(code) like '3995%' or trim(code) like '8914%') and type='PROCEDURE'))
       Then 1 Else 0 End
       as OrganFailure
       
@@ -134,13 +133,13 @@ select subject_id, hadm_id, max(CABG) as CABG, max(IABP) as IABP, max(CABG_DISCH
       ((lower(n.text) like '%cabg%' or lower(n.text) like '%coronary bypass graft%') and lower(n.category) like 'discharge_summary') ) 
       then 1 else 0 end as CABG_DISCHARGE, 
     case when (
-      (p.itemid in (select distinct itemid from mimic2v26.d_codeditems where (code like '3611' or code like '3612' or code like '3613' or code like '3614') and type = 'PROCEDURE'))  )
+      (p.itemid in (select distinct itemid from mimic2v26.d_codeditems where (trim(code) like '3611' or trim(code) like '3612' or trim(code) like '3613' or trim(code) like '3614') and type = 'PROCEDURE'))  )
       then 1 else 0 end as CABG,
     case when ( 
       ((lower(n.text) like '%iabp%' or lower(n.text) like '%intra-aortic balloon pump%') and lower(n.category) like 'discharge_summary') )
       then 1 else 0 end as IABP_DISCHARGE,  
     case when (
-        (p.itemid in (select distinct itemid from mimic2v26.d_codeditems where (code like '3761') and type = 'PROCEDURE'))  )
+        (p.itemid in (select distinct itemid from mimic2v26.d_codeditems where (trim(code) like '3761') and type = 'PROCEDURE'))  )
       then 1 else 0 end as IABP,
     case when (lower(n.text) like '%rvad%' or lower(n.text) like '%right ventricular assistance device%') then 1 else 0 end as RVAD,
     case when (lower(n.text) like '%lvad%' or lower(n.text) like '%left ventricular assistance device%') then 1 else 0 end as LVAD
@@ -159,7 +158,7 @@ select subject_id, hadm_id, max(CABG) as CABG, max(IABP) as IABP, max(CABG_DISCH
 --select count(1) from dis_Cond where RVAD = 1; --71
 --select count(1) from dis_Cond where LVAD = 1; --81
 --select count(1) from dis_Cond where IABP = 1; --1048
---select count(1) from dis_Cond where CABG = 1; --3482
+--select sum(CABG), sum(IABP), sum(RVAD), sum(LVAD) from dis_Cond; --596, 107, 9, 25
 ,
 
 /*
@@ -394,9 +393,10 @@ LactateData as (
       or c.category like '%SURVIVAL%'
       or c.category like '%LOS%'
 )
--- Select out the per-apatient attributed that are important
+---- Select out the per-apatient attributed that are important
 --select distinct subject_id, icustay_admit_age, gender, icustay_first_careunit, 
 --                codes, IABP, CABG, IABP_DISCHARGE, CABG_DISCHARGE, LVAD, RVAD,
+--                infection, organfailure,
 --                congestive_heart_failure, cardiac_arrhythmias, valvular_disease,      -- EH Scores
 --                aids, alcohol_abuse, blood_loss_anemia, chronic_pulmonary,
 --                coagulopathy, deficiency_anemias, depression,
