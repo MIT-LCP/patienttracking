@@ -4,7 +4,7 @@ clear all;close all;clc
 
 %Suffix for the files that will be generated (filter length will be
 %appended later )
-file_suffix=['filt-lactate-interpolated-dataset-'];
+file_suffix=['lactate-interpolated-dataset-'];
 
 [id,pid,CATEGORY,VAL,TM,AGE,commorbidityVal,commorbidityNames] = loadSQLData();
 AGE=double(AGE);
