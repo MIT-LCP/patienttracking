@@ -118,8 +118,8 @@ for n=1:NvarName
                 %filtfilt only works for cases where Ny is 3x filter order
                 if(nb ~=1)
                     %TODO: Consider using FILTER instead
-                    y(:,2)=filtfilt(b,1,y(:,2));
-                    %y(:,2)=filter(b,1,y(:,2));
+                    %y(:,2)=filtfilt(b,1,y(:,2));
+                    y(:,2)=filter(b,1,y(:,2));
                 end
             end
         end

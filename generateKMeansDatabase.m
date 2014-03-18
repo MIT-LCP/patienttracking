@@ -4,7 +4,7 @@ clear all;close all;clc
 
 %Suffix for the files that will be generated (filter length will be
 %appended later )
-file_suffix=['lactate-interpolated-dataset-'];
+file_suffix=['realTime-lactate-interpolated-dataset-'];
 
 [id,pid,CATEGORY,VAL,TM,AGE,commorbidityVal,commorbidityNames] = loadSQLData();
 AGE=double(AGE);
@@ -48,7 +48,7 @@ timeSeriesInd=find(strcmp(column_names,'lact_val')==1);
 Nc=length(column_names);
 
 %Smooothing window size (in hours)
-AVE_WIN=[0 3 5 13 23];
+AVE_WIN=[23];
 NAVE=length(AVE_WIN);
 
 show=0; %Set this to true to display interpolate waveforms (need to be on debug mode)
