@@ -43,13 +43,78 @@ for s=1:Nsmooth
     eval(['lact_db_' str '(:,urine_dx_ind)=urine_dx;'])
 end
 
+%    'pid'
+%     'age'
+%     'tm'
+%     'lact_val'
+%     'lact_dx'
+%     'lact_var'
+%     'map_val'
+%     'map_dx'
+%     'map_var'
+%     'hr_val'
+%     'hr_dx'
+%     'hr_var'
+%     'urine_val'
+%     'urine_dx'
+%     'urine_var'
+%     'weight_val'
+%     'weight_dx'
+%     'weight_var'
+%     'pressor_val'
+%     'pressor_dx'
+%     'pressor_var'
+%     'Hb_val'
+%     'Hb_dx'
+%     'Hb_var'
+%     'HbMassBlood_val'
+%     'HbMassBlood_dx'
+%     'HbMassBlood_var'
+%     'mech_vent_val'
+%     'mech_vent_dx'
+%     'mech_vent_var'
+%     'PaCO2_val'
+%     'PaCO2_dx'
+%     'PaCO2_var'
+%     'resp_val'
+%     'resp_dx'
+%     'resp_var'
+%     'temp_val'
+%     'temp_dx'
+%     'temp_var'
+%     'wbc_val'
+%     'wbc_dx'
+%     'wbc_var'
+%     'ageNormalized_hr_val'
+%     'ageNormalized_hr_dx'
+%     'ageNormalized_hr_var'
+%     'cardiacOutput_val'
+%     'cardiacOutput_dx'
+%     'cardiacOutput_var'
+%     'envelope_map_val'
+%     'envelope_map_dx'
+%     'envelope_map_var'
+%     'envelope_hr_val'
+%     'envelope_hr_dx'
+%     'envelope_hr_var'
+%     'envelope_urine_val'
+%     'envelope_urine_dx'
+%     'envelope_urine_var'
+%     'envelope_resp_val'
+%     'envelope_resp_dx'
+%     'envelope_resp_var'
+%     'envelope_temp_val'
+%     'envelope_temp_dx'
+%     'envelope_temp_var'
+%     'envelope_cardiacOutput_val'
+%     'envelope_cardiacOutput_dx'
+%     'envelope_cardiacOutput_var'
 
 %For now only use these columns (other features will be discarded
 use_col={'map_val','map_dx','map_var','ageNormalized_hr_val','ageNormalized_hr_dx','ageNormalized_hr_var','urine_val','urine_dx',...
     'urine_var','weight_val','weight_dx','pressor_val','cardiacOutput_val','cardiacOutput_dx','cardiacOutput_var'...
-    'hr_val','hr_dx','hr_var'};
+    'Hb_val','HbMassBlood_val','PaCO2_val','PaCO2_dx','resp_val','resp_dx','wbc_val','temp_val','temp_dx'};
 
-%use_col={'map_val','ageNormalized_hr_val','urine_val','urine_var','weight_dx','pressor_val','cardiacOutput_val'};
 Ncol=length(use_col);
 del=[1:length(column_names)];
 for n=1:Ncol
@@ -176,18 +241,16 @@ for n=1:Nfold
     testOutputs = net1(testData');
     
     %Train Neural Net
-    net = fitnet([50 5]);
+    net = fitnet([100 5]);
     net = configure(net,trainOutputs,trainTarget');
     net.inputs{1}.processFcns={'mapstd','mapminmax'};
     [net,tr] = train(net,trainOutputs,trainTarget');
     nntraintool
     
     %Test Neural Net
-    lact_hat=simnet(net,testOutputs);
-    crossPerf(n,1)=mean((lact_hat-testTarget).^2);
-    
-    
-    
-    
+    lact_hat=net(testOutputs);
+    crossPerf(n,1)=mean((lact_hat'-testTarget).^2);
+    subplot(3,1,n)
+    scatter(lact_hat,testTarget)
     
 end
