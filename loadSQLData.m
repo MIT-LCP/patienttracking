@@ -38,7 +38,7 @@ end
 
 %Elimate patients with any of: IABP, LVAD RVAD, or no CABG
 remove_ind=((IABP==1)+(CABG==0)+(LVAD==1)+(RVAD==1)) > 0;
-remove_ind=[];
+%remove_ind=[];
 
 SUBJECT_ID(remove_ind)=[];
 ICUSTAY_ADMIT_AGE(remove_ind)=[];
