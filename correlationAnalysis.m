@@ -2,9 +2,9 @@
 %Based on Time series of MAP, Urine Ouput, Lactate, and HR
 clear all;close all;clc
 
-[id,pid,CATEGORY,VAL,TM] = loadSQLData();
+[id,pid,CATEGORY,VAL,TM,AGE,commorbidityVal,commorbidityNames] = loadSQLData();
 
-
+ 
 %Define sampling interal (in hour) for which we will
 %be interpolating the time series
 Ts=0.01;
@@ -15,7 +15,7 @@ M=length(id);
 outVarName={'lact','map','hr','urine','weight'};
 varLabels={'LACTATE','MAP','HR','URINE','WEIGHT'};
 NvarName=length(outVarName);
-average_window=12; %Define average window length in units of hour for smoothing the interpolated time series
+average_window=24; %Define average window length in units of hour for smoothing the interpolated time series
 %fname=['lactate-kmeans-dataset- ' num2str(average_window) 'hours-smoothed.mat']; %File name that will be created
 
 %The dataset used for k-means will contain following features described
@@ -78,9 +78,11 @@ show=0; %Set this to true to display interpolate waveforms (need to be on debug 
 corr_mat = zeros(M, 3);
 lags_mat=zeros(M,3);
 xcorr_mat=zeros(M,3);
+infection=zeros(M,1);
 
-
+ 
 for m=1:M
+   
     
     pid_ind=find(pid==id(m));
     if(isempty(pid_ind))
@@ -104,6 +106,10 @@ for m=1:M
         continue
     end
     
+    if commorbidityVal(m,2) > 48
+        infection(m)=1;
+    end
+    
     try
         
         for i=1:length(variables)
@@ -115,14 +121,7 @@ for m=1:M
                 continue
             end
             
-            %do cross correlation between lactate and urine
-            %find the maximum value of correlation and the lag associated with
-            %it and set to lags_mat and xcorr_mat
-            [C,LAGS] = xcorr(lact(:,2),variable(:,2));
-            [max_value, index] = max(abs(C(:)));
-            lag=LAGS(index);
-            lags_mat(m,i)=lag;
-            xcorr_mat(m,i)=C(index);
+        
 
             %for correlation coefficient need to make sure samples are same length   
             min_x = max(variable(1,1), lact(1,1));
@@ -144,6 +143,16 @@ for m=1:M
             end
 
             %compute the correlation and p-values
+            
+            %do cross correlation between lactate and urine
+            %find the maximum value of correlation and the lag associated with
+            %it and set to lags_mat and xcorr_mat
+            [C,LAGS] = xcorr(lact(:,2),variable(:,2));
+            [max_value, index] = max(abs(C(:)));
+            lag=LAGS(index);
+            lags_mat(m,i)=lag;
+            xcorr_mat(m,i)=C(index);
+            
             [r, p] = corrcoef([newlact(:,2) variable(:,2)]);   
 
             % Save the correlation coefficient IF the p value is less than 0.01

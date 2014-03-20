@@ -47,7 +47,7 @@ id=unique(SUBJECT_ID);
 M=length(id);
 
 %Elimate patients not in the cohort from commorbidity columns
-commorbidityStartInd=find(strcmp(header,'CONGESTIVE_HEART_FAILURE')==1);
+commorbidityStartInd=find(strcmp(header,'INFECTION')==1);
 commorbidityEndInd=find(strcmp(header,'WEIGHT_LOSS')==1);
 commorbidityNames=header(commorbidityStartInd:commorbidityEndInd);
 Ncommorbidity=length(commorbidityNames);
@@ -75,7 +75,7 @@ tm(db_remove_ind)=[];
 commorbidityVal=zeros(M,Ncommorbidity+1)+NaN;
 commorbidityVal(:,1)=SUBJECT_ID;
 for n=1:Ncommorbidity
-    eval(['commorbidityVal(:,n)=' commorbidityNames{n} '(:);'])
+    eval(['commorbidityVal(:,n+1)=' commorbidityNames{n} '(:);'])
 end
 
 
