@@ -8,34 +8,21 @@ function [] = generateInterpolatedSignals(filename)
 
 %Define sampling interal (in hour) for which we will
 %be interpolating the time series
-Ts=0.01;
-results=[];
-M=length(id);
+Ts = 0.01;
+results = [];
+M = length(id);
 
 %Used in eval loops to decrease amount of boilerplate code
 outVarName={'lact','map','hr','urine','weight'};
 varLabels={'LACTATE','MAP','HR','URINE','WEIGHT'};
 NvarName=length(outVarName);
 average_window = 6; %Define average window length in units of hour for smoothing the interpolated time series
-fname=['signals-dataset- ' num2str(average_window) 'hours-smoothed.mat']; %File name that will be created
 
-%The dataset used for k-means will contain following features described
-%each in column (these values are interpolated for all waveforms, sampled
-% at the time of the lactate measurement, the lactate values are not interpolated).
-column_names={'pid','tm','lact_val','lact_dx','lact_dxx','map_val','map_dx','map_dxx', ...
-    'hr_val','hr_dx','hr_dxx','urine_val','urine_dx','urine_dxx','weight_val',...
-    'weight_dx','weight_dxx'};
-Nc=length(column_names);
-lact_db=zeros(0,Nc);
-feature=zeros(0,Nc);
-addVariance=0;
-lact_measurements={};
-
-%Get thresholds for removing 5% tail distribution
-%in order to remove outliers. Thresholds set to NaN will be ignored
+%Get thresholds for removing 5% tail distribution in order to remove outliers. Thresholds set to NaN will be ignored
 %Keep all the lactate values, at least for now
 varTH=zeros(NvarName,2)+NaN; %First column is LB, second is UP
 th=0.02; %Use 2% threshold on each tail
+
 %TODO: may want  to use different threshold for urine
 for n=1:NvarName
     if(~strcmp(varLabels{n},'LACTATE'))
@@ -73,7 +60,7 @@ Nlact_removed=0;
 % Update list of unique patients
 id=unique(pid);
 M=length(id);
-show = 1; %Set this to true to display interpolate waveforms (need to be on debug mode)
+show = 0; %Set this to true to display interpolate waveforms (need to be on debug mode)
 
 for m=1:M
 
@@ -89,12 +76,80 @@ for m=1:M
     category=CATEGORY(pid_ind(1):pid_ind(end));
     val=VAL(pid_ind(1):pid_ind(end));
     [lact,map,hr,urine,weight] = getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show,average_window);
-    close all;
     
-    allSig(m, :) = [lact,map,hr,urine];
+    if(isempty(urine) || isempty(map)|| isempty(lact)|| isempty(hr) || isempty(weight) || ...
+       sum(isfinite(urine)) == 0 || sum(isfinite(map)) == 0 || sum(isfinite(lact)) == 0 || sum(isfinite(hr)) == 0 || sum(isfinite(weight)) == 0 )
+        warning(['Empty interpolated signals.'])
+        lact_ind=strcmp(category,'LACTATE');
+        warning(['Skipping: ' num2str(length(lact_ind)) ' lactate measurements'])
+        Nlact_check=Nlact_check+sum(lact_ind);
+        Nlact_removed=Nlact_removed+length(lact_ind);
+        continue
+    end
+    
+    %Normalize urine by getting the closest weight in the past
+    urine=normalizeUrine(urine,weight);
+    
+    %Crop time series to the minimum ranges +- one hour
+    minTm=min([lact(1) map(1) hr(1) urine(1)])-1;
+    maxTm=min([lact(end,1) map(end,1) hr(end,1) urine(end,1)])+1;
+    for n=1:NvarName
+        if(~strcmp(outVarName{n},'weight'))
+            %Its ok if we just have one value of weight,so ignore it
+            eval(['cropTm=maxTm-' outVarName{n} '(:,1);'])
+            eval([outVarName{n} '(cropTm<0,:)=[];'])
+            eval(['cropTm=' outVarName{n} '(:,1)-minTm;'])
+            eval([outVarName{n} '(cropTm<0,:)=[];'])
+            eval(['[varSize,~]=size(' outVarName{n} ');'])
+            if(varSize==0)
+                warning([' Time series  ' outVarName{n} ' is outside range: ' num2str(minTm) ' - ' num2str(maxTm)])
+            end
+        end
+    end
+    
+    lact_ind=strcmp(category,'LACTATE');
+    Nlact_check=Nlact_check+sum(lact_ind);
+    lact_points=[tm(lact_ind) val(lact_ind)];
+    lact_points=sortrows(lact_points,1);
+    del=[];
+    del=find(isnan(lact_points(:,1))==1);
+    del=[del;find(lact_points(:,2)==0)];
+    del=[del;find(lact_points(:,1)<minTm)];
+    del=unique([del;find(lact_points(:,1)>maxTm)]);
+    if(~isempty(del))
+        if( lact_points(end,1)<minTm || lact_points(1,1)>maxTm)
+            warning(['Lactate outside the range values (' num2str(lact_points(1,1)) ' - ' ...
+                num2str(lact_points(end,1)) ' ) : ' num2str(minTm) ' - ' num2str(maxTm)])
+        end
+        lact_points(del,:)=[];
+        
+        warning(['Removing ' num2str(length(del)) ' lactate points.'])
+        Nlact_removed=Nlact_removed+length(length(del));
+    end    
+        
+    min_x = max([lact(1, 1); map(1, 1); hr(1, 1); urine(1, 1)]);
+    max_x = min([lact(end, 1); map(end, 1); hr(end, 1); urine(end, 1)]);
+    
+    lact(lact(:, 1) < min_x | lact(:, 1) > max_x, :) = []; urine(urine(:, 1) < min_x | urine(:, 1) > max_x, :) = [];
+    map(map(:, 1) < min_x | map(:, 1) > max_x, :) = []; hr(hr(:, 1) < min_x | hr(:, 1) > max_x, :) = [];
+    
+    minLen = min([length(lact) length(map) length(urine) length(hr)]);
+    if length(lact) > minLen
+        lact(minLen+1:end, :) = [];
+    elseif length(urine) > minLen
+        urine(minLen+1:end, :) = [];
+    elseif length(hr) > minLen
+        hr(minLen+1:end, :) = [];
+    elseif length(map) > minLen
+        map(minLen+1:end, :) = [];        
+    end    
+    
+    m
+    allSig{m} = [lact(:, 1), lact(:, 2), map(:, 2), hr(:, 2), urine(:, 2)];
+    realSig{m} = lact_points;
 end
 
-save(filename, 'allSig');
+save(filename, 'allSig', 'realSig');
 
 display(['***Finished generating dataset, processed ' num2str(Nlact_check) ' lactate points from a total of: ' num2str(NlactTotal) '!!'])
 display(['***Number of unused lactate points= ' num2str(Nlact_removed)])

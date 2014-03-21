@@ -1,8 +1,11 @@
-function [id,pid,category,val,tm,age,commorbidityVal,commorbidityNames] = loadSQLData()
+function [id,pid,category,val,tm,age,commorbidityVal,commorbidityNames] = loadSQLData()%fname_time, fname_patient, removeFlag)
+
+fname_time = 'lactateTimeData.csv';
+fname_patient = 'lactatePatientData.csv';
+removeFlag = 1;
 
 %Loads data from the SQL query
-fname='./lactateTimeData.csv';
-fid_in=fopen(fname,'r');
+fid_in=fopen(fname_time,'r');
 C=textscan(fid_in,'%d %s %f %s','delimiter', ',','HeaderLines',1);
 fclose(fid_in);
 header={'pid','category','val','tm'};
@@ -15,8 +18,7 @@ category=strrep(category,'"','');
 tm=strrep(tm,'"','');
 
 %Load meta data
-fname='./lactatePatientData.csv';
-fid_in=fopen(fname,'r');
+fid_in=fopen(fname_patient, 'r');
 
 header={'SUBJECT_ID','ICUSTAY_ADMIT_AGE','GENDER','ICUSTAY_FIRST_CAREUNIT','CODES','IABP','CABG',...
     'IABP_DISCHARGE','CABG_DISCHARGE','LVAD','RVAD','INFECTION','ORGANFAILURE','CONGESTIVE_HEART_FAILURE','CARDIAC_ARRHYTHMIAS',...
@@ -37,14 +39,25 @@ for n=1:length(header)
 end
 
 %Elimate patients with any of: IABP, LVAD RVAD, or no CABG
-remove_ind=((IABP==1)+(CABG==0)+(LVAD==1)+(RVAD==1)) > 0;
-%remove_ind=[];
+if removeFlag == 1
+    remove_ind=((IABP==1)+(CABG==0)+(LVAD==1)+(RVAD==1)) > 0;
+else
+    remove_ind=[];
+end
 
 SUBJECT_ID(remove_ind)=[];
 ICUSTAY_ADMIT_AGE(remove_ind)=[];
 age=ICUSTAY_ADMIT_AGE;
 id=unique(SUBJECT_ID);
 M=length(id);
+
+% Figure out the first care unit. 
+[CCU, CSRU, FICU, MICU, SICU] = deal(zeros(length(ICUSTAY_FIRST_CAREUNIT), 1));
+CCU(strcmp(ICUSTAY_FIRST_CAREUNIT, 'CCU')) = 1;
+CSRU(strcmp(ICUSTAY_FIRST_CAREUNIT, 'CSRU')) = 1;
+MICU(strcmp(ICUSTAY_FIRST_CAREUNIT, 'MICU') | strcmp(ICUSTAY_FIRST_CAREUNIT, 'FICU')) = 1;
+SICU(strcmp(ICUSTAY_FIRST_CAREUNIT, 'SICU')) = 1;  
+
 
 %Elimate patients not in the cohort from commorbidity columns
 commorbidityStartInd=find(strcmp(header,'INFECTION')==1);

@@ -4,7 +4,6 @@ clear all;close all;clc
 
 [id,pid,CATEGORY,VAL,TM,AGE,commorbidityVal,commorbidityNames] = loadSQLData();
 
- 
 %Define sampling interal (in hour) for which we will
 %be interpolating the time series
 Ts=0.01;
@@ -15,7 +14,7 @@ M=length(id);
 outVarName={'lact','map','hr','urine','weight'};
 varLabels={'LACTATE','MAP','HR','URINE','WEIGHT'};
 NvarName=length(outVarName);
-average_window=24; %Define average window length in units of hour for smoothing the interpolated time series
+average_window=3; %Define average window length in units of hour for smoothing the interpolated time series
 %fname=['lactate-kmeans-dataset- ' num2str(average_window) 'hours-smoothed.mat']; %File name that will be created
 
 %The dataset used for k-means will contain following features described
@@ -75,15 +74,16 @@ M=length(id);
 show=0; %Set this to true to display interpolate waveforms (need to be on debug mode)
 
 %columns: urine, hr, map
-corr_mat = zeros(M, 3);
-lags_mat=zeros(M,3);
-xcorr_mat=zeros(M,3);
-infection=zeros(M,1);
-
+corr_mat_pear = ones(M, 3)*NaN;
+corr_mat_spear = ones(M, 3)*NaN;
+p_mat_pear = ones(M, 3)*NaN;
+p_mat_spear = ones(M, 3)*NaN;
+lags_mat =ones(M, 3)*NaN;
+xcorr_mat = ones(M, 3)*NaN;
+infection = ones(M, 1)*NaN;
  
 for m=1:M
-   
-    
+
     pid_ind=find(pid==id(m));
     if(isempty(pid_ind))
         warning(['Skipping empty data from subject: ' num2str(id(m))])
@@ -120,8 +120,6 @@ for m=1:M
             if sum(ismember(category,categories(i))) < 6
                 continue
             end
-            
-        
 
             %for correlation coefficient need to make sure samples are same length   
             min_x = max(variable(1,1), lact(1,1));
@@ -153,15 +151,28 @@ for m=1:M
             lags_mat(m,i)=lag;
             xcorr_mat(m,i)=C(index);
             
-            [r, p] = corrcoef([newlact(:,2) variable(:,2)]);   
+            [r1, p1] = corrcoef([newlact(:,2) variable(:,2)]);
+            [r2, p2] = corr([newlact(:,2) variable(:,2)], 'type', 'Spearman');
+            
+            % Save the p-value. ..
+            p_mat_pear(m, i) = p1(1, 2);
+            p_mat_spear(m, i) = p2(1, 2);
 
             % Save the correlation coefficient IF the p value is less than 0.01
-            if p(1, 2) < 0.01
-                corr_mat(m,i) = r(1, 2);
+            if p1(1, 2) < 0.01 && max(newlact(:,2)) >=4
+                corr_mat_pear(m,i) = r1(1, 2);
             end
+            if p2(1, 2) < 0.01 && max(newlact(:,2)) >=4
+                corr_mat_spear(m,i) = r2(1, 2);
+                
+                if i == 1 && abs(r2(1, 2)) > 0.6 && abs(r2(1, 2)) < 0.75
+                    [lact,map,hr,urine,weight]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,1,average_window);                
+                    close all;
+                end
+            end            
         end
     catch 
-            
+         disp('OMG Ponies');   
     end
  
 

@@ -15,6 +15,8 @@ with CODEDATA AS (
 --select * from codedata;
 ,
 
+-- SEARCH FOR ECMO!!! ecmo (extra corporeal membrane oxygenation)
+
 -- Identify those with at least 3 lactate measures
 minLact as(
   select subject_id as pid, hadm_id as hid

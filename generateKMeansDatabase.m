@@ -52,7 +52,7 @@ AVE_WIN=[23];
 NAVE=length(AVE_WIN);
 
 show=0; %Set this to true to display interpolate waveforms (need to be on debug mode)
-showHistogram=0;
+showHistogram=1;
 [CATEGORY,VAL,TM,pid] = removeOutliers(varLabels,CATEGORY,VAL,NvarName,TM,pid,showHistogram);
 
 lact_ind=cellfun(@isempty, strfind(CATEGORY,'LACTATE'));
