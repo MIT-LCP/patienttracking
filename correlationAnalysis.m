@@ -165,14 +165,14 @@ for m=1:M
             if p2(1, 2) < 0.01 && max(newlact(:,2)) >=4
                 corr_mat_spear(m,i) = r2(1, 2);
                 
-                if i == 1 && abs(r2(1, 2)) > 0.6 && abs(r2(1, 2)) < 0.75
-                    [lact,map,hr,urine,weight]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,1,average_window);                
-                    close all;
-                end
+                %if i == 1 && abs(r2(1, 2)) > 0.6 && abs(r2(1, 2)) < 0.75
+                %    [lact,map,hr,urine,weight]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,1,average_window);                
+                %    close all;
+                %end
             end            
         end
     catch 
-         disp('OMG Ponies');   
+         disp('OMG Ponies!');   
     end
  
 

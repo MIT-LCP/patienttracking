@@ -1,8 +1,18 @@
-function [id,pid,category,val,tm,age,commorbidityVal,commorbidityNames] = loadSQLData()%fname_time, fname_patient, removeFlag)
+function [id,pid,category,val,tm,age,commorbidityVal,commorbidityNames, ...
+            CCU, CSRU, MICU, SICU, ...
+            IABP, CABG, LVAD, RVAD, ...
+            ICD9s, SUBJECT_ID] = loadSQLData(varargin)
+
 
 fname_time = 'lactateTimeData.csv';
 fname_patient = 'lactatePatientData.csv';
 removeFlag = 1;
+
+if nargin == 3
+    fname_time = varargin{1};
+    fname_patient = varargin{2};
+    removeFlag = varargin{3};
+end
 
 %Loads data from the SQL query
 fid_in=fopen(fname_time,'r');
@@ -27,7 +37,7 @@ header={'SUBJECT_ID','ICUSTAY_ADMIT_AGE','GENDER','ICUSTAY_FIRST_CAREUNIT','CODE
     'HYPOTHYROIDISM','LIVER_DISEASE','LYMPHOMA','METASTATIC_CANCER','OBESITY','OTHER_NEUROLOGICAL','PARALYSIS',...
     'PEPTIC_ULCER','PERIPHERAL_VASCULAR','PSYCHOSES','PULMONARY_CIRCULATION','RENAL_FAILURE','RHEUMATOID_ARTHRITIS','SOLID_TUMOR','WEIGHT_LOSS'};
 
-C=textscan(fid_in,['%d %d %s %s %s %d %d %d ' ...
+C=textscan(fid_in,['%d %d %q %q %q %d %d %d ' ...
     '%d %d %d %c %c %c %c %c ' ...
     '%c %c %c %c %c %c %c %c ' ...
     '%c %c %c %c %c %c %c %c ' ...
@@ -45,11 +55,15 @@ else
     remove_ind=[];
 end
 
+% Remove those from the variables. 
 SUBJECT_ID(remove_ind)=[];
-ICUSTAY_ADMIT_AGE(remove_ind)=[];
-age=ICUSTAY_ADMIT_AGE;
-id=unique(SUBJECT_ID);
-M=length(id);
+ICUSTAY_ADMIT_AGE(remove_ind)=[]; ICUSTAY_FIRST_CAREUNIT(remove_ind)=[];
+IABP(remove_ind)=[]; CABG(remove_ind)=[]; LVAD(remove_ind)=[]; RVAD(remove_ind)=[];
+
+% Rename some of them
+age = ICUSTAY_ADMIT_AGE;
+id = unique(SUBJECT_ID);
+M = length(id);
 
 % Figure out the first care unit. 
 [CCU, CSRU, FICU, MICU, SICU] = deal(zeros(length(ICUSTAY_FIRST_CAREUNIT), 1));
@@ -58,6 +72,14 @@ CSRU(strcmp(ICUSTAY_FIRST_CAREUNIT, 'CSRU')) = 1;
 MICU(strcmp(ICUSTAY_FIRST_CAREUNIT, 'MICU') | strcmp(ICUSTAY_FIRST_CAREUNIT, 'FICU')) = 1;
 SICU(strcmp(ICUSTAY_FIRST_CAREUNIT, 'SICU')) = 1;  
 
+% Get the ICD9 Codes
+for j = 1:length(CODES)
+    parts = regexp(CODES{j}, ';', 'split');
+    codes = cellfun(@(x) sscanf(x,'%f'), parts, 'uni', false);
+    codes(cellfun(@isempty,codes))=[];
+
+    ICD9s(j, 1:length(codes)) = cell2mat(codes);
+end
 
 %Elimate patients not in the cohort from commorbidity columns
 commorbidityStartInd=find(strcmp(header,'INFECTION')==1);
@@ -67,7 +89,6 @@ Ncommorbidity=length(commorbidityNames);
 for n=1:Ncommorbidity
     eval([commorbidityNames{n} '(remove_ind)=[];'])
 end
-
 
 %Loop through the time series data to remove any patient not in the cohort
 N=length(pid);

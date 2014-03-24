@@ -5,47 +5,23 @@ close all;
 clc;
 close all
 
-pressorEval = 0;
+pressorEval = 1;
 
 %------------------------
-%Load time series data
-fname='./lactateTimeData.csv';
-fid_in=fopen(fname,'r');
-C=textscan(fid_in,'%d %s %f %s','delimiter', ',','HeaderLines',1);
-fclose(fid_in);
-header={'PID','CATEGORY','VAL','TM'};
-for n=1:length(header)
-    eval([header{n} '=C{:,n};'])
-end
+% Load data
+[id,pid,category,val,tm,age,commorbidityVal,commorbidityNames, ...
+            CCU, CSRU, MICU, SICU, ...
+            IABP, CABG, LVAD, RVAD, ...
+            ICD9s, MID] = loadSQLData('lactateTimeData.csv', 'lactatePatientData.csv', 0);
 
-%------------------------
-%Remove double quotest from data
-CATEGORY=strrep(CATEGORY,'"','');
-TM=strrep(TM,'"','');
-
-%------------------------
-%Load meta data
-fname='./lactatePatientData.csv';
-fid_in=fopen(fname,'r');
-C=textscan(fid_in,'%d %f %q %q %d %d %d %d','delimiter', ',','HeaderLines',1);
-fclose(fid_in);
-header={'MID','AGE', 'ICU', 'ICD9CODES','IABP','CABG','LVAD','RVAD'};
-for n=1:length(header)
-    eval([header{n} '=C{:,n};'])
-end
-
-[CCU, CSRU, FICU, MICU, SICU] = deal(zeros(length(ICU), 1));
-CCU(strcmp(ICU, 'CCU')) = 1;
-CSRU(strcmp(ICU, 'CSRU')) = 1;
-MICU(strcmp(ICU, 'MICU') | strcmp(ICU, 'FICU')) = 1;
-SICU(strcmp(ICU, 'SICU')) = 1;  
+age = double(age);
 
 if pressorEval == 1
     %------------------------
     % Find all patients with a pressor noted.
     % See if this is essentially the same as the cohort that has CABG
-    pressDup = strcmp(CATEGORY, 'PRESSOR_TIME_MINUTES');
-    idsWithPress = unique(PID(pressDup));
+    pressDup = strcmp(category, 'PRESSOR_TIME_MINUTES');
+    idsWithPress = unique(pid(pressDup));
     press =  ismember(MID, idsWithPress);
     pressToInd = find(press == 1);
     idsWithPress = unique(MID(press));
@@ -69,8 +45,8 @@ if pressorEval == 1
     % vassopressor time in their entire stay and save to a mat file with a 
     % per SID column and then a cluster ID.
     %------------------------
-    pressVal = double(VAL(pressDup));
-    pressID = double(PID(pressDup));
+    pressVal = double(val(pressDup));
+    pressID = double(pid(pressDup));
     S = bsxfun(@eq, double(idsWithPress), pressID');
     minutesSum = S*pressVal;
     D = pdist(minutesSum, 'euclidean');     % Dstd = pdist(minutesSum,'seuclidean');
@@ -92,21 +68,21 @@ if pressorEval == 1
                 'Cluster 1 (%d patients with median of %d minutes)\t%0.1f\t%0.1f%%\t%0.1f%%\t%0.1f%%\t%0.1f%%\n' ...
                 'Cluster 2 (%d patients with median of %d minutes)\t%0.1f\t%0.1f%%\t%0.1f%%\t%0.1f%%\t%0.1f%%\n' ...
                 'Cluster 3 (%d patients with median of %d minutes)\t%0.1f\t%0.1f%%\t%0.1f%%\t%0.1f%%\t%0.1f%%\n'], ...            
-                median(AGE(~press)), 100*sum(CCU(~press))/sum(~press), 100*sum(CSRU(~press))/sum(~press), 100*sum(MICU(~press))/sum(~press), 100*sum(SICU(~press))/sum(~press), ...
-                median(AGE(press)), 100*sum(CCU(press))/sum(press), 100*sum(CSRU(press))/sum(press), 100*sum(MICU(press))/sum(press), 100*sum(SICU(press))/sum(press), ...
+                median(age(~press)), 100*sum(CCU(~press))/sum(~press), 100*sum(CSRU(~press))/sum(~press), 100*sum(MICU(~press))/sum(~press), 100*sum(SICU(~press))/sum(~press), ...
+                median(age(press)), 100*sum(CCU(press))/sum(press), 100*sum(CSRU(press))/sum(press), 100*sum(MICU(press))/sum(press), 100*sum(SICU(press))/sum(press), ...
                 sum(clusAssign == 1), median(minutesSum(clusAssign == 1)), ...
-                median(AGE(pressToInd(clusAssign==1))), 100*sum(CCU(pressToInd(clusAssign==1)))/sum(clusAssign==1), 100*sum(CSRU(pressToInd(clusAssign==1)))/sum(clusAssign==1), 100*sum(MICU(pressToInd(clusAssign==1)))/sum(clusAssign==1), 100*sum(SICU(pressToInd(clusAssign==1)))/sum(clusAssign==1), ...
+                median(age(pressToInd(clusAssign==1))), 100*sum(CCU(pressToInd(clusAssign==1)))/sum(clusAssign==1), 100*sum(CSRU(pressToInd(clusAssign==1)))/sum(clusAssign==1), 100*sum(MICU(pressToInd(clusAssign==1)))/sum(clusAssign==1), 100*sum(SICU(pressToInd(clusAssign==1)))/sum(clusAssign==1), ...
                 sum(clusAssign == 2), median(minutesSum(clusAssign == 2)), ...
-                median(AGE(pressToInd(clusAssign==2))), 100*sum(CCU(pressToInd(clusAssign==2)))/sum(clusAssign==2), 100*sum(CSRU(pressToInd(clusAssign==2)))/sum(clusAssign==2), 100*sum(MICU(pressToInd(clusAssign==2)))/sum(clusAssign==2), 100*sum(SICU(pressToInd(clusAssign==2)))/sum(clusAssign==2), ...
+                median(age(pressToInd(clusAssign==2))), 100*sum(CCU(pressToInd(clusAssign==2)))/sum(clusAssign==2), 100*sum(CSRU(pressToInd(clusAssign==2)))/sum(clusAssign==2), 100*sum(MICU(pressToInd(clusAssign==2)))/sum(clusAssign==2), 100*sum(SICU(pressToInd(clusAssign==2)))/sum(clusAssign==2), ...
                 sum(clusAssign == 3), median(minutesSum(clusAssign == 3)), ...
-                median(AGE(pressToInd(clusAssign==3))), 100*sum(CCU(pressToInd(clusAssign==3)))/sum(clusAssign==3), 100*sum(CSRU(pressToInd(clusAssign==3)))/sum(clusAssign==3), 100*sum(MICU(pressToInd(clusAssign==3)))/sum(clusAssign==3), 100*sum(SICU(pressToInd(clusAssign==3)))/sum(clusAssign==3));
+                median(age(pressToInd(clusAssign==3))), 100*sum(CCU(pressToInd(clusAssign==3)))/sum(clusAssign==3), 100*sum(CSRU(pressToInd(clusAssign==3)))/sum(clusAssign==3), 100*sum(MICU(pressToInd(clusAssign==3)))/sum(clusAssign==3), 100*sum(SICU(pressToInd(clusAssign==3)))/sum(clusAssign==3));
                 
 end
 
 %------------------------
 % Elimate patients with IABP, LVAD, and RVAD
 % Only look at those patietns with CABG
-MID(~CABG) = []; AGE(~CABG) = []; CCU(~CABG) = []; CSRU(~CABG) = []; MICU(~CABG) = []; SICU(~CABG) = [];
+MID(~CABG) = []; age(~CABG) = []; CCU(~CABG) = []; CSRU(~CABG) = []; MICU(~CABG) = []; SICU(~CABG) = [];
 ID =unique(MID);
 M = length(ID);
 
