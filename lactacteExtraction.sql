@@ -15,8 +15,6 @@ with CODEDATA AS (
 --select * from codedata;
 ,
 
--- SEARCH FOR ECMO!!! ecmo (extra corporeal membrane oxygenation)
-
 -- Identify those with at least 3 lactate measures
 minLact as(
   select subject_id as pid, hadm_id as hid
@@ -129,7 +127,7 @@ sepsisMax as (
 -- 'cabg' (coronary bypass graft), IABP (intra aortic balloon pump), RUAD (right ventricular assistance device),
 -- LUAD (left ventricular assistance device)
 dis_Cond as (
-select subject_id, hadm_id, max(CABG) as CABG, max(IABP) as IABP, max(CABG_DISCHARGE) as CABG_DISCHARGE, max(IABP_DISCHARGE) as IABP_DISCHARGE, max(RVAD) as RVAD, max(LVAD) as LVAD from (
+select subject_id, hadm_id, max(CABG) as CABG, max(IABP) as IABP, max(CABG_DISCHARGE) as CABG_DISCHARGE, max(IABP_DISCHARGE) as IABP_DISCHARGE, max(RVAD) as RVAD, max(LVAD) as LVAD, max(ECMO) as ECMO from (
   select distinct s.subject_id, s.hadm_id, --category,
     case when (
       ((lower(n.text) like '%cabg%' or lower(n.text) like '%coronary bypass graft%') and lower(n.category) like 'discharge_summary') ) 
@@ -144,7 +142,10 @@ select subject_id, hadm_id, max(CABG) as CABG, max(IABP) as IABP, max(CABG_DISCH
         (p.itemid in (select distinct itemid from mimic2v26.d_codeditems where (trim(code) like '3761') and type = 'PROCEDURE'))  )
       then 1 else 0 end as IABP,
     case when (lower(n.text) like '%rvad%' or lower(n.text) like '%right ventricular assistance device%') then 1 else 0 end as RVAD,
-    case when (lower(n.text) like '%lvad%' or lower(n.text) like '%left ventricular assistance device%') then 1 else 0 end as LVAD
+    case when (lower(n.text) like '%lvad%' or lower(n.text) like '%left ventricular assistance device%') then 1 else 0 end as LVAD,
+    case when (
+        (p.itemid in (select distinct itemid from mimic2v26.d_codeditems where (trim(code) like '3965') and type = 'PROCEDURE'))  )
+      then 1 else 0 end as ECMO
 
   from cohort s,
        mimic2v26.noteevents n,
@@ -369,7 +370,7 @@ LactateData as (
   select  s.pid as subject_id, s.hid as hadm_id, s.icustay_admit_age, s.gender, -- basic stats
           s.icustay_first_careunit, s.icustay_intime,                           -- ICU info
           i.codes,                                                              -- ICD9 codes
-          d.IABP, d.CABG, d.IABP_DISCHARGE, d.CABG_DISCHARGE, d.LVAD, d.RVAD,   -- condition info
+          d.IABP, d.CABG, d.IABP_DISCHARGE, d.CABG_DISCHARGE, d.LVAD, d.RVAD, d.ECMO,   -- condition info
           congestive_heart_failure, cardiac_arrhythmias, valvular_disease,      -- EH Scores
           aids, alcohol_abuse, blood_loss_anemia, chronic_pulmonary,
           coagulopathy, deficiency_anemias, depression,
@@ -395,21 +396,21 @@ LactateData as (
       or c.category like '%SURVIVAL%'
       or c.category like '%LOS%'
 )
----- Select out the per-apatient attributed that are important
---select distinct subject_id, icustay_admit_age, gender, icustay_first_careunit, 
---                codes, IABP, CABG, IABP_DISCHARGE, CABG_DISCHARGE, LVAD, RVAD,
---                infection, organfailure,
---                congestive_heart_failure, cardiac_arrhythmias, valvular_disease,      -- EH Scores
---                aids, alcohol_abuse, blood_loss_anemia, chronic_pulmonary,
---                coagulopathy, deficiency_anemias, depression,
---                diabetes_complicated, diabetes_uncomplicated, drug_abuse,
---                fluid_electrolyte, hypertension, hypothyroidism, liver_disease,
---                lymphoma, metastatic_cancer, obesity, other_neurological,
---                paralysis, peptic_ulcer, peripheral_vascular, psychoses,
---                pulmonary_circulation, renal_failure, rheumatoid_arthritis,
---                solid_tumor, weight_loss                   
---  from LactateData 
---  order by subject_id;
+-- Select out the per-apatient attributed that are important
+select distinct subject_id, icustay_admit_age, gender, icustay_first_careunit, 
+                codes, IABP, CABG, IABP_DISCHARGE, CABG_DISCHARGE, LVAD, RVAD, ECMO,
+                infection, organfailure,
+                congestive_heart_failure, cardiac_arrhythmias, valvular_disease,      -- EH Scores
+                aids, alcohol_abuse, blood_loss_anemia, chronic_pulmonary,
+                coagulopathy, deficiency_anemias, depression,
+                diabetes_complicated, diabetes_uncomplicated, drug_abuse,
+                fluid_electrolyte, hypertension, hypothyroidism, liver_disease,
+                lymphoma, metastatic_cancer, obesity, other_neurological,
+                paralysis, peptic_ulcer, peripheral_vascular, psychoses,
+                pulmonary_circulation, renal_failure, rheumatoid_arthritis,
+                solid_tumor, weight_loss                   
+  from LactateData 
+  order by subject_id;
 
 --,
 -- Final selection formats the data into a time series format.
