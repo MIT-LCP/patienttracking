@@ -176,6 +176,7 @@ shuffled_pids=reshape(shuffled_pids,[NCrossVal/Nfold Nfold]);
 crossPerf=zeros(Nfold,1)+NaN;
 Ntest=NCrossVal/Nfold;
 Ntrain=Ntest*2;
+Ncomm=length(commorbidityNames);
 
 for n=1:Nfold
     
@@ -190,6 +191,11 @@ for n=1:Nfold
     
     testTarget=zeros(Ntest,1)+NaN;
     trainTarget=zeros(Ntest,1)+NaN;
+    
+    %Generate the test and training commorbidities
+    testComm=zeros(Ntest,Ncomm)+NaN;
+    trainComm=zeros(Ntest,Ncomm)+NaN;
+    
     test_ind=1;
     train_ind=1;
     old_pid=0;
@@ -212,10 +218,12 @@ for n=1:Nfold
         if(isTest)
             testData(test_ind,:)=lact_db(t,:);
             testTarget(test_ind)=target(t);
+            testComm(test_ind,:)=commorbidityVal(t,:);
             test_ind=test_ind+1;
         else
             trainData(train_ind,:)=lact_db(t,:);
             trainTarget(train_ind)=target(t);
+            trainComm(train_ind,:)=commorbidityVal(t,:);
             train_ind=train_ind+1;
         end
     end
@@ -224,24 +232,18 @@ for n=1:Nfold
     del_ind=find(isnan(testTarget)==1);
     testTarget(del_ind)=[];
     testData(del_ind,:)=[];
+    testComm(del_ind,:)=[];
     
     del_ind=find(isnan(trainTarget)==1);
     trainTarget(del_ind)=[];
     trainData(del_ind,:)=[];
+    trainComm(del_ind,:)=[];
     
-    % Create a Self-Organizing Map
-    dimension1 = 15;
-    dimension2 = 15;
-    net1= selforgmap([dimension1 dimension2]);
-    % Train the Network
-    [net1,tr] = train(net1,trainData');
-    
-    % Test the SOM Network
-    trainOutputs = net1(trainData');
-    testOutputs = net1(testData');
+    %Estimate latent variables
+    O2DeliveryNet=latentO2Delivery(trainOutputs,trainComm,commorbidityNames);
     
     %Train Neural Net
-    net = fitnet([100 5]);
+    net = fitnet([50 10 5]);
     net = configure(net,trainOutputs,trainTarget');
     net.inputs{1}.processFcns={'mapstd','mapminmax'};
     [net,tr] = train(net,trainOutputs,trainTarget');
@@ -252,5 +254,6 @@ for n=1:Nfold
     crossPerf(n,1)=mean((lact_hat'-testTarget).^2);
     subplot(3,1,n)
     scatter(lact_hat,testTarget)
+    title([num2str(crossPerf(n,1))])
     
 end

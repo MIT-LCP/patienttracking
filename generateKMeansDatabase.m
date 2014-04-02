@@ -48,11 +48,11 @@ timeSeriesInd=find(strcmp(column_names,'lact_val')==1);
 Nc=length(column_names);
 
 %Smooothing window size (in hours)
-AVE_WIN=[23];
+AVE_WIN=[13 23];
 NAVE=length(AVE_WIN);
 
 show=0; %Set this to true to display interpolate waveforms (need to be on debug mode)
-showHistogram=1;
+showHistogram=0;
 [CATEGORY,VAL,TM,pid] = removeOutliers(varLabels,CATEGORY,VAL,NvarName,TM,pid,showHistogram);
 
 lact_ind=cellfun(@isempty, strfind(CATEGORY,'LACTATE'));

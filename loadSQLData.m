@@ -6,7 +6,7 @@ function [id,pid,category,val,tm,age,commorbidityVal,commorbidityNames, ...
 
 fname_time = 'lactateTimeData.csv';
 fname_patient = 'lactatePatientData.csv';
-removeFlag = 1;
+removeFlag = 0;
 
 if nargin == 3
     fname_time = varargin{1};
@@ -109,7 +109,7 @@ tm(db_remove_ind)=[];
 %wit SUBJECT_ID in the first column
 commorbidityVal=zeros(M,Ncommorbidity+1)+NaN;
 commorbidityVal(:,1)=SUBJECT_ID;
-for n=1:Ncommorbidity
+for n=2:Ncommorbidity
     eval(['commorbidityVal(:,n+1)=' commorbidityNames{n} '(:);'])
 end
 
