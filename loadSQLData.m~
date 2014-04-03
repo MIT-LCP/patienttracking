@@ -121,11 +121,8 @@ for n=2:Ncommorbidity
 end
 
 %Add OLD AGE and GENDER to Commorbidity
-commorbidityVal(:,n+1)=age>75; %Old population defined based on SAPS =2 
-commorbidityNames{end+1}={'OLD_AGE'};
+commorbidityVal(:,n+1)=age>45; %Old population defined as 
 
-commorbidityVal(:,n+1)=double(strcmp(GENDER,'M')); %Old population defined based on SAPS =2 
-commorbidityNames{end+1}={'MALE'};
 
 end
 

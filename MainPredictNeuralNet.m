@@ -246,6 +246,10 @@ for n=1:Nfold
     [netO2Utilization,trO2Utilization,targetO2Utilization]=latentO2Utilization(trainData,trainComm,commorbidityNames,netShow);
     [netO2Delivery,trO2Delivery,targetO2Delivery]=latentO2Delivery(trainData,trainComm,commorbidityNames,netShow);
 
+     plotperf(trO2Demmands)
+    yhat = netO2Demmands(trainData');
+    plotregression(targetO2Demmands,yhat);
+    
     save temp_nets
     
     %Train Neural Net

@@ -1,4 +1,4 @@
-function varargout=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show,average_window)
+function varargout=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show,average_window,realTimeFlag)
 %
 % waveforms= getInterpolatedWaveforms(varLabels,category)
 %
@@ -22,7 +22,11 @@ function varargout=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarN
 %[lact,map,hr,urine]=getInterpolatedWaveforms(varLabels,category,Ts,outVarName);
 
 NvarName=length(varLabels);
-
+if(isempty(realTimeFlag))
+    %Default =0 will use FILFILT for all filtering operations to have 0
+    %phase
+    realTimeFlag=0;
+end
 %Average window in units of hour
 if(isempty(average_window))
     average_window=0.5;
@@ -118,8 +122,11 @@ for n=1:NvarName
                 %filtfilt only works for cases where Ny is 3x filter order
                 if(nb ~=1)
                     %TODO: Consider using FILTER instead
-                    %y(:,2)=filtfilt(b,1,y(:,2));
-                    y(:,2)=filter(b,1,y(:,2));
+                    if(realTimeFlag)
+                        y(:,2)=filter(b,1,y(:,2));
+                    else
+                        y(:,2)=filtfilt(b,1,y(:,2));
+                    end
                 end
             end
         end
