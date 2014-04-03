@@ -1,17 +1,23 @@
 function [id,pid,category,val,tm,age,commorbidityVal,commorbidityNames, ...
-            CCU, CSRU, MICU, SICU, ...
-            IABP, CABG, LVAD, RVAD, ...
-            ICD9s, SUBJECT_ID] = loadSQLData(varargin)
+    CCU, CSRU, MICU, SICU, ...
+    IABP, CABG, LVAD, RVAD, ...
+    ICD9s, SUBJECT_ID] = loadSQLData(varargin)
 
 
 fname_time = 'lactateTimeData.csv';
 fname_patient = 'lactatePatientData.csv';
-removeFlag = 0;
+removeFlag = 1;
 
 if nargin == 3
-    fname_time = varargin{1};
-    fname_patient = varargin{2};
-    removeFlag = varargin{3};
+    if(~isempty(varargin{1}))
+        fname_time = varargin{1};
+    end
+    if(~isempty(varargin{2}))
+        fname_patient = varargin{2};
+    end
+    if(~isempty(varargin{3}))
+        removeFlag = varargin{3};
+    end
 end
 
 %Loads data from the SQL query
@@ -56,7 +62,7 @@ else
     remove_ind=[];
 end
 
-% Remove those from the variables. 
+% Remove those from the variables.
 SUBJECT_ID(remove_ind)=[];
 ICUSTAY_ADMIT_AGE(remove_ind)=[]; ICUSTAY_FIRST_CAREUNIT(remove_ind)=[];
 IABP(remove_ind)=[]; CABG(remove_ind)=[]; LVAD(remove_ind)=[]; RVAD(remove_ind)=[];
@@ -66,19 +72,19 @@ age = ICUSTAY_ADMIT_AGE;
 id = unique(SUBJECT_ID);
 M = length(id);
 
-% Figure out the first care unit. 
+% Figure out the first care unit.
 [CCU, CSRU, FICU, MICU, SICU] = deal(zeros(length(ICUSTAY_FIRST_CAREUNIT), 1));
 CCU(strcmp(ICUSTAY_FIRST_CAREUNIT, 'CCU')) = 1;
 CSRU(strcmp(ICUSTAY_FIRST_CAREUNIT, 'CSRU')) = 1;
 MICU(strcmp(ICUSTAY_FIRST_CAREUNIT, 'MICU') | strcmp(ICUSTAY_FIRST_CAREUNIT, 'FICU')) = 1;
-SICU(strcmp(ICUSTAY_FIRST_CAREUNIT, 'SICU')) = 1;  
+SICU(strcmp(ICUSTAY_FIRST_CAREUNIT, 'SICU')) = 1;
 
 % Get the ICD9 Codes
 for j = 1:length(CODES)
     parts = regexp(CODES{j}, ';', 'split');
     codes = cellfun(@(x) sscanf(x,'%f'), parts, 'uni', false);
     codes(cellfun(@isempty,codes))=[];
-
+    
     ICD9s(j, 1:length(codes)) = cell2mat(codes);
 end
 
