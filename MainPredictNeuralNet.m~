@@ -242,8 +242,20 @@ for n=1:Nfold
     trainComm(del_ind,:)=[];
     
     %Estimate latent variables
-    [netO2Delivery,trO2Delivery,targetO2Delivery]=latentO2Delivery(trainData,trainComm,commorbidityNames);
-
+    testN=10;
+    net=[];
+    tr=[];
+    for i=1:testN
+        [tmp_net,tmp_tr]=latentO2Delivery(trainData,trainComm,commorbidityNames);
+        tmp_tr.best_tperf
+        if(i==1 || tmp_tr.best_tperf<tr.best_tperf)
+            net=tmp_net;
+            tr=tmp_tr;
+        end
+    end
+    
+    plotperf(tr)
+    
     
     %Train Neural Net
     net = fitnet([50 10 5]);

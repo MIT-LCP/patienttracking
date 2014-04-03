@@ -41,13 +41,13 @@ testN=10;
 net=[];
 tr=[];
 for i=1:testN
-    tmp_net= fitnet([50 5]);
-    tmp_net= configure(tmp_net,trainData',target');
+    tmp_net= fitnet([50]);
+    tmp_net= configure(net,trainData',target');
     tmp_net.inputs{1}.processFcns={'mapstd','mapminmax'};
-    %tmp_net.layers{end}.transferFcn = 'logsig';
-    tmp_net.trainParam.showWindow = false;
-    tmp_net.trainParam.showCommandLine = false;
-    [tmp_net,tmp_tr] = train(tmp_net,trainData',target');
+    %net.layers{end}.transferFcn = 'logsig';
+    net.trainParam.showWindow = false;
+    net.trainParam.showCommandLine = false;
+    [net,tr] = train(net,trainData',target');
     tmp_tr.best_tperf
     if(i==1 || tmp_tr.best_tperf<tr.best_tperf)
         net=tmp_net;
