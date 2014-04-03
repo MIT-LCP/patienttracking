@@ -32,6 +32,7 @@ urine_ind=find(strcmp(column_names,'urine_val')==1);
 weight_ind=find(strcmp(column_names,'weight_val')==1);
 urine_dx_ind=find(strcmp(column_names,'urine_dx')==1);
 weight_dx_ind=find(strcmp(column_names,'weight_dx')==1);
+age_ind=find(strcmp(column_names,'age')==1);
 
 %Update smooth set to have default case and normalize urine over all interpolated sets
 for s=1:Nsmooth
@@ -157,9 +158,7 @@ end
 %Partition the dataset into 3 parts for 3x validation
 %The N-fold validation is done in terms of number of patients, not number
 %of measurements (which may be dependent).
-%TODO: The sets should have no points from the same patient, or points from
-%the same patient that are sufficiently far apart to be deemed independent
-% (say, 6 hours).
+%The sets should have no points from the same patients across them.
 
 Nfold=3;
 NCrossVal=ceil(Npid/Nfold)*Nfold;
@@ -177,7 +176,6 @@ crossPerf=zeros(Nfold,1)+NaN;
 Ntest=NCrossVal/Nfold;
 Ntrain=Ntest*2;
 Ncomm=length(commorbidityNames);
-
 for n=1:Nfold
     
     %Set test, training and validation data (MATLAB's NN Toolbox will take care
@@ -219,12 +217,14 @@ for n=1:Nfold
             testData(test_ind,:)=lact_db(t,:);
             testTarget(test_ind)=target(t);
             commInd=find(commorbidityVal(:,1) == tmp_pid);
+            %First column of commorbidityVal is subject ID
             testComm(test_ind,:)=commorbidityVal(commInd,2:end);
             test_ind=test_ind+1;
         else
             trainData(train_ind,:)=lact_db(t,:);
             trainTarget(train_ind)=target(t);
             commInd=find(commorbidityVal(:,1) == tmp_pid);
+            %First column of commorbidityVal is subject ID
             trainComm(train_ind,:)=commorbidityVal(commInd,2:end);
             train_ind=train_ind+1;
         end
@@ -242,7 +242,9 @@ for n=1:Nfold
     trainComm(del_ind,:)=[];
     
     %Estimate latent variables
-    [netO2Delivery,trO2Delivery,targetO2Delivery]=latentO2Delivery(trainData,trainComm,commorbidityNames);
+    netShow=0; %displays regression plot of NN on target values
+    [netO2Demmands,trO2Demmands,targetO2Demmands]=latentO2Utilization(trainData,trainComm,commorbidityNames,netShow);
+    [netO2Delivery,trO2Delivery,targetO2Delivery]=latentO2Delivery(trainData,trainComm,commorbidityNames,netShow);
 
     
     %Train Neural Net
