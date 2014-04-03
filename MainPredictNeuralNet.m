@@ -218,12 +218,14 @@ for n=1:Nfold
         if(isTest)
             testData(test_ind,:)=lact_db(t,:);
             testTarget(test_ind)=target(t);
-            testComm(test_ind,:)=commorbidityVal(t,:);
+            commInd=find(commorbidityVal(:,1) == tmp_pid);
+            testComm(test_ind,:)=commorbidityVal(commInd,2:end);
             test_ind=test_ind+1;
         else
             trainData(train_ind,:)=lact_db(t,:);
             trainTarget(train_ind)=target(t);
-            trainComm(train_ind,:)=commorbidityVal(t,:);
+            commInd=find(commorbidityVal(:,1) == tmp_pid);
+            trainComm(train_ind,:)=commorbidityVal(commInd,2:end);
             train_ind=train_ind+1;
         end
     end
@@ -240,7 +242,8 @@ for n=1:Nfold
     trainComm(del_ind,:)=[];
     
     %Estimate latent variables
-    O2DeliveryNet=latentO2Delivery(trainOutputs,trainComm,commorbidityNames);
+    [net,tr]=latentO2Delivery(trainData,trainComm,commorbidityNames);
+    nntraintool
     
     %Train Neural Net
     net = fitnet([50 10 5]);
