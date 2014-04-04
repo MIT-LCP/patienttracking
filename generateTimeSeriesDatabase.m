@@ -7,7 +7,7 @@ clear all;close all;clc
 file_suffix=['realTime-lactate-interpolated-dataset-'];
 
 %Smooothing window size (in hours) for poor brazilan man wavelets approach
-AVE_WIN=[0 3 5 13 23];
+AVE_WIN=[23];
 NAVE=length(AVE_WIN);
 
 removeFlag=0; %Do not remove CABG, LVAD, and RAVD patients
