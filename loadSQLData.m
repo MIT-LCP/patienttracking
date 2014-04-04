@@ -4,6 +4,12 @@ function [id,pid,category,val,tm,age,commorbidityVal,commorbidityNames, ...
     ICD9s, SUBJECT_ID] = loadSQLData(varargin)
 
 
+%Create persistent variables to avoid reading the files over again.
+%If text files trainComm fname_patient, change, users need to restart
+%MATLAB !
+
+persistent series_header series_C meta_header meta_C
+
 fname_time = 'lactateTimeData.csv';
 fname_patient = 'lactatePatientData.csv';
 removeFlag = 1;
@@ -21,40 +27,40 @@ if nargin == 3
 end
 
 %Loads data from the SQL query
-fid_in=fopen(fname_time,'r');
-C=textscan(fid_in,'%d %s %f %s','delimiter', ',','HeaderLines',1);
-fclose(fid_in);
-header={'pid','category','val','tm'};
-for n=1:length(header)
-    eval([header{n} '=C{:,n};'])
+if(isempty(series_header))
+    fid_in=fopen(fname_time,'r');
+    series_C=textscan(fid_in,'%d %s %f %s','delimiter', ',','HeaderLines',1);
+    fclose(fid_in);
+    series_header={'pid','category','val','tm'};
+    for n=1:length(series_header)
+        eval([series_header{n} '=series_C{:,n};'])
+    end
+    %Remove double quotest from data
+    category=strrep(category,'"','');
+    tm=strrep(tm,'"','');
+    
+    %Load meta data
+    fid_in=fopen(fname_patient, 'r');
+    
+    meta_header={'SUBJECT_ID','ICUSTAY_ADMIT_AGE','GENDER','ICUSTAY_FIRST_CAREUNIT','CODES','IABP','CABG',...
+        'IABP_DISCHARGE','CABG_DISCHARGE','LVAD','RVAD','ECMO','INFECTION','ORGANFAILURE','CONGESTIVE_HEART_FAILURE','CARDIAC_ARRHYTHMIAS',...
+        'VALVULAR_DISEASE','AIDS','ALCOHOL_ABUSE','BLOOD_LOSS_ANEMIA','CHRONIC_PULMONARY','COAGULOPATHY','DEFICIENCY_ANEMIAS',...
+        'DEPRESSION','DIABETES_COMPLICATED','DIABETES_UNCOMPLICATED','DRUG_ABUSE','FLUID_ELECTROLYTE','HYPERTENSION',...
+        'HYPOTHYROIDISM','LIVER_DISEASE','LYMPHOMA','METASTATIC_CANCER','OBESITY','OTHER_NEUROLOGICAL','PARALYSIS',...
+        'PEPTIC_ULCER','PERIPHERAL_VASCULAR','PSYCHOSES','PULMONARY_CIRCULATION','RENAL_FAILURE','RHEUMATOID_ARTHRITIS','SOLID_TUMOR','WEIGHT_LOSS'};
+    
+    meta_C=textscan(fid_in,['%d %d %q %q %q %d %d %d ' ...
+        '%d %d %d %d ' ...
+        '%c %c %c %c %c ' ...
+        '%c %c %c %c %c %c %c %c ' ...
+        '%c %c %c %c %c %c %c %c ' ...
+        '%c %c %c %c %c %c %c %c ' ...
+        '%c %c %c '],'delimiter', ',','HeaderLines',1);
+    fclose(fid_in);
+    for n=1:length(meta_header)
+        eval([meta_header{n} '=meta_C{:,n};'])
+    end
 end
-
-%Remove double quotest from data
-category=strrep(category,'"','');
-tm=strrep(tm,'"','');
-
-%Load meta data
-fid_in=fopen(fname_patient, 'r');
-
-header={'SUBJECT_ID','ICUSTAY_ADMIT_AGE','GENDER','ICUSTAY_FIRST_CAREUNIT','CODES','IABP','CABG',...
-    'IABP_DISCHARGE','CABG_DISCHARGE','LVAD','RVAD','ECMO','INFECTION','ORGANFAILURE','CONGESTIVE_HEART_FAILURE','CARDIAC_ARRHYTHMIAS',...
-    'VALVULAR_DISEASE','AIDS','ALCOHOL_ABUSE','BLOOD_LOSS_ANEMIA','CHRONIC_PULMONARY','COAGULOPATHY','DEFICIENCY_ANEMIAS',...
-    'DEPRESSION','DIABETES_COMPLICATED','DIABETES_UNCOMPLICATED','DRUG_ABUSE','FLUID_ELECTROLYTE','HYPERTENSION',...
-    'HYPOTHYROIDISM','LIVER_DISEASE','LYMPHOMA','METASTATIC_CANCER','OBESITY','OTHER_NEUROLOGICAL','PARALYSIS',...
-    'PEPTIC_ULCER','PERIPHERAL_VASCULAR','PSYCHOSES','PULMONARY_CIRCULATION','RENAL_FAILURE','RHEUMATOID_ARTHRITIS','SOLID_TUMOR','WEIGHT_LOSS'};
-
-C=textscan(fid_in,['%d %d %q %q %q %d %d %d ' ...
-    '%d %d %d %d ' ...
-    '%c %c %c %c %c ' ...
-    '%c %c %c %c %c %c %c %c ' ...
-    '%c %c %c %c %c %c %c %c ' ...
-    '%c %c %c %c %c %c %c %c ' ...
-    '%c %c %c '],'delimiter', ',','HeaderLines',1);
-fclose(fid_in);
-for n=1:length(header)
-    eval([header{n} '=C{:,n};'])
-end
-
 %Elimate patients with any of: IABP, LVAD RVAD, or no CABG
 if removeFlag == 1
     remove_ind=((IABP==1)+(CABG==0)+(LVAD==1)+(RVAD==1)+(ECMO==1)) > 0;
@@ -90,9 +96,9 @@ for j = 1:length(CODES)
 end
 
 %Elimate patients not in the cohort from commorbidity columns and meta data
-commorbidityStartInd=find(strcmp(header,'INFECTION')==1);
-commorbidityEndInd=find(strcmp(header,'WEIGHT_LOSS')==1);
-commorbidityNames=header(commorbidityStartInd:commorbidityEndInd);
+commorbidityStartInd=find(strcmp(meta_header,'INFECTION')==1);
+commorbidityEndInd=find(strcmp(meta_header,'WEIGHT_LOSS')==1);
+commorbidityNames=meta_header(commorbidityStartInd:commorbidityEndInd);
 Ncommorbidity=length(commorbidityNames);
 for n=1:Ncommorbidity
     eval([commorbidityNames{n} '(remove_ind)=[];'])
@@ -117,15 +123,15 @@ tm(db_remove_ind)=[];
 commorbidityVal=zeros(M,Ncommorbidity+1)+NaN;
 commorbidityVal(:,1)=SUBJECT_ID;
 for n=1:Ncommorbidity
-    eval(['commorbidityVal(:,n+1)=' commorbidityNames{n} '(:);'])
+    eval(['commorbidityVal(:,n+1)=(' commorbidityNames{n} '==''1'');'])
 end
 commorbidityNames={'PID',commorbidityNames{:}};
 
 %Add OLD AGE and GENDER to Commorbidity
-commorbidityVal(:,end+1)=age>75; %Old population defined based on SAPS =2 
+commorbidityVal(:,end+1)=age>75; %Old population defined based on SAPS =2
 commorbidityNames{end+1}='OLD_AGE';
 
-commorbidityVal(:,end+1)=double(strcmp(GENDER,'M')); %Old population defined based on SAPS =2 
+commorbidityVal(:,end+1)=double(strcmp(GENDER,'M')); %Old population defined based on SAPS =2
 commorbidityNames{end+1}='MALE';
 
 end

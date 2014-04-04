@@ -13,9 +13,6 @@ Ntrue=length(trueVar);
 Nfalse=length(falseVar);
 Nvar=Ntrue+Nfalse;
 
-
-%Convert commorbidities from char to double
-trainComm=double(trainComm-double('0'));
 %Generate Target by logistic function based on commorbidities that are true
 %in trueVar
 indTrue=[];
@@ -35,6 +32,12 @@ for n=1:Ntrue
     target=target+trainComm(:,indTrue);
 end
 
+%If target is has less than 20%, issue a sparsity error 
+per=sum(target)/length(target);
+if(per<0.2 || per> 0.8)
+   error(['Target is sparse: ' num2str(round(per*100)) ' % is true'])
+end
+
 %Normalize target by the maximum number of variables
 %and so that the target is logsig (0-1) within x=0-20 (with x= 10 -> y= 0.5)
 scale=20;
@@ -44,9 +47,10 @@ target=1./(1+exp(-target+bx));
 
 
 %Train NN based on target
-net=[];
-tr=[];
-for i=1:testN
+NET=cell(testN,1);
+TR=cell(testN,1);
+score=zeros(testN,1);
+parfor i=1:testN
     tmp_net= fitnet(net_arch);
     tmp_net= configure(tmp_net,trainData',target');
     tmp_net.inputs{1}.processFcns={'mapstd','mapminmax'};
@@ -55,11 +59,13 @@ for i=1:testN
     tmp_net.trainParam.showCommandLine = false;
     [tmp_net,tmp_tr] = train(tmp_net,trainData',target');
     tmp_tr.best_tperf
-    if(i==1 || tmp_tr.best_tperf<tr.best_tperf)
-        net=tmp_net;
-        tr=tmp_tr;
-    end
+    NET{i}=tmp_net;
+    TR{i}=tmp_tr;
+    scores(i)=tmp_tr.best_tperf;
 end
+[~,best]=min(scores);
+net=NET{best};
+tr=TR{best};
 
 if(show)
     plotperf(tr)

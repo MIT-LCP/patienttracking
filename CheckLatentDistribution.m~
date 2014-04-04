@@ -1,0 +1,15 @@
+%Prints the percentage of true classes of the latente variables described
+%in the functions:
+%
+%latentO2Demmand
+%latentO2Utilization
+%
+clear all;close all;clc
+
+
+[Npid,lact_db,target,commorbidityVal,commorbidityNames]=loadNNFeatures();
+
+
+[netO2Demmand,trO2Demmand,targetO2Demmand]=latentO2Demmand(trainData,trainComm,commorbidityNames,netShow);
+[netO2Utilization,trO2Utilization,targetO2Utilization]=latentO2Utilization(trainData,trainComm,commorbidityNames,netShow);
+[netO2Delivery,trO2Delivery,targetO2Delivery]=latentO2Delivery(trainData,trainComm,commorbidityNames,netShow);
