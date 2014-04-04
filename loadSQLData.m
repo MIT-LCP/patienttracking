@@ -116,16 +116,17 @@ tm(db_remove_ind)=[];
 %wit SUBJECT_ID in the first column
 commorbidityVal=zeros(M,Ncommorbidity+1)+NaN;
 commorbidityVal(:,1)=SUBJECT_ID;
-for n=2:Ncommorbidity
+for n=1:Ncommorbidity
     eval(['commorbidityVal(:,n+1)=' commorbidityNames{n} '(:);'])
 end
+commorbidityNames={'PID',commorbidityNames{:}};
 
 %Add OLD AGE and GENDER to Commorbidity
-commorbidityVal(:,n+1)=age>75; %Old population defined based on SAPS =2 
-commorbidityNames{end+1}={'OLD_AGE'};
+commorbidityVal(:,end+1)=age>75; %Old population defined based on SAPS =2 
+commorbidityNames{end+1}='OLD_AGE';
 
-commorbidityVal(:,n+1)=double(strcmp(GENDER,'M')); %Old population defined based on SAPS =2 
-commorbidityNames{end+1}={'MALE'};
+commorbidityVal(:,end+1)=double(strcmp(GENDER,'M')); %Old population defined based on SAPS =2 
+commorbidityNames{end+1}='MALE';
 
 end
 

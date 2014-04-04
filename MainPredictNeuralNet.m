@@ -243,6 +243,7 @@ for n=1:Nfold
     
     %Estimate latent variables
     netShow=0; %displays regression plot of NN on target values
+    [netO2Demmand,trO2Demmand,targetO2Demmand]=latentO2Demmand(trainData,trainComm,commorbidityNames,netShow);
     [netO2Utilization,trO2Utilization,targetO2Utilization]=latentO2Utilization(trainData,trainComm,commorbidityNames,netShow);
     [netO2Delivery,trO2Delivery,targetO2Delivery]=latentO2Delivery(trainData,trainComm,commorbidityNames,netShow);
 
