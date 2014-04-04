@@ -14,7 +14,7 @@ M=length(id);
 outVarName={'lact','map','hr','urine','weight'};
 varLabels={'LACTATE','MAP','HR','URINE','WEIGHT'};
 NvarName=length(outVarName);
-average_window=3; %Define average window length in units of hour for smoothing the interpolated time series
+average_window=13; %Define average window length in units of hour for smoothing the interpolated time series
 %fname=['lactate-kmeans-dataset- ' num2str(average_window) 'hours-smoothed.mat']; %File name that will be created
 
 %The dataset used for k-means will contain following features described
@@ -96,7 +96,7 @@ for m=1:M
     tm=(tm-tm(1)).*24;
     category=CATEGORY(pid_ind(1):pid_ind(end));
     val=VAL(pid_ind(1):pid_ind(end));
-    [lact,map,hr,urine,weight]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show,average_window);
+    [lact,map,hr,urine,weight]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show,average_window,0);
     
     variables={urine, hr, map};
     categories={'URINE', 'HR', 'MAP'};
@@ -106,12 +106,14 @@ for m=1:M
         continue
     end
     
+    %looking for patients with infection
     if commorbidityVal(m,2) > 48
         infection(m)=1;
     end
     
     try
-        
+        %add correlation coeff between lactate and each variable: urine,
+        %hr, map
         for i=1:length(variables)
         
             variable=cell2mat(variables(i));
@@ -128,11 +130,6 @@ for m=1:M
             newlact=lact(:,:);
             newlact(lact(:,1) <= min_x | lact(:,1) > max_x,:) = []; 
             variable(variable(:,1) <= min_x | variable(:,1) > max_x,:) = []; 
-% % 
-%             figure
-%             hold on;
-%             plot(newlact(:,1),newlact(:,2),'r'); 
-%             plot(variable(:,1), variable(:,2), 'b');
 
             if length(newlact(:,2)) > length(variable(:,2))
                 newlact(1:(length(newlact(:,2)) - length(variable(:,2))),:) = [];
@@ -140,9 +137,8 @@ for m=1:M
                 variable(1:(length(variable(:,2)) - length(newlact(:,2))),:) = [];
             end
 
-            %compute the correlation and p-values
             
-            %do cross correlation between lactate and urine
+            %do cross correlation between lactate and current variable
             %find the maximum value of correlation and the lag associated with
             %it and set to lags_mat and xcorr_mat
             [C,LAGS] = xcorr(lact(:,2),variable(:,2));
@@ -151,20 +147,26 @@ for m=1:M
             lags_mat(m,i)=lag;
             xcorr_mat(m,i)=C(index);
             
+            
+            %find both pearson and spearman correlation coefficients
             [r1, p1] = corrcoef([newlact(:,2) variable(:,2)]);
             [r2, p2] = corr([newlact(:,2) variable(:,2)], 'type', 'Spearman');
             
-            % Save the p-value. ..
+            % Save the p-value...
             p_mat_pear(m, i) = p1(1, 2);
             p_mat_spear(m, i) = p2(1, 2);
 
-            % Save the correlation coefficient IF the p value is less than 0.01
-            if p1(1, 2) < 0.01 && max(newlact(:,2)) >=4
+            % Save the correlation coefficient IF the p value is less than
+            % 0.05 and the max lactate level is higher than 4
+            if p1(1, 2) < 0.05 && max(newlact(:,2)) >=4
                 corr_mat_pear(m,i) = r1(1, 2);
             end
-            if p2(1, 2) < 0.01 && max(newlact(:,2)) >=4
+            if p2(1, 2) < 0.05 && max(newlact(:,2)) >=4
                 corr_mat_spear(m,i) = r2(1, 2);
                 
+                
+                %uncomment to show graphs when looking at urine and
+                %spearman coefficient is high
                 %if i == 1 && abs(r2(1, 2)) > 0.6 && abs(r2(1, 2)) < 0.75
                 %    [lact,map,hr,urine,weight]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,1,average_window);                
                 %    close all;
@@ -174,42 +176,14 @@ for m=1:M
     catch 
          disp('OMG Ponies!');   
     end
- 
-
     
-    %___________________________
     
-    %plotting variance of urine and lactate using 1,5,10 hr bins
-% 
-%     hours=[1,5,10];
-% %     figure
-%     
-%     for hour=1:length(hours)
-%         time=100*hours(hour);
-%     
-%         %cut times so it is exactly in hours
-%         new_end=floor(length(urine(:,1))/time)*time;
-%         short_urine_Tm=urine(1:new_end,1);
-%         one_hour=reshape(short_urine_Tm,time,new_end/time);
-%         new_time=one_hour(1,:);
-%         
-%         %reshape urine into columns of 100 time samples
-%         %(1hr) and then take the variance for each column
-%         urine_short=urine(1:new_end,2);
-%         reshaped_urine=reshape(urine_short,time,new_end/time);
-%         var_urine=var(reshaped_urine);
-%         
-%        
-%         %plot both variances over time on the same graph
-% %         subplot(3,1,hour);
-% %         hold on;
-% %         plot(new_time,var_urine,'b');
-% %         plot(lact(:,1),lact(:,2),'r');
-% %         title([num2str(hours(hour))]);
-%     end
-%close all
     
 end
+
+columns={'urine','hr','map'};
+save ('correlation-13hr.mat', 'corr_mat_pear','corr_mat_spear','p_mat_pear','p_mat_spear','lags_mat','xcorr_mat','columns')
+
 
 
 
