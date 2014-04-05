@@ -19,9 +19,10 @@ chckLatentDistFlag=1;
 [~,~,target02Utilization,per02Utilization]=latentO2Utilization(lact_db,commorbidityVal,commorbidityNames,[],chckLatentDistFlag);
 [~,~,target02Delivery,per02Delivery]=latentO2Delivery(lact_db,commorbidityVal,commorbidityNames,[],chckLatentDistFlag);
 
-stem([per02Demand per02Utilization per02Delivery])
+stem([per02Demand per02Utilization per02Delivery],'LineWidth',3)
 title('Latent Variable Distribution')
 ylabel('Percent of True Cases (C >0)')
+set(gca,'XTick',[1 2 3],'XTickLabel',{'Demmand','Utility','Delivery'})
 
 figure
 plot(sort(target02Demand))
