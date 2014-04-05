@@ -1,14 +1,19 @@
-function [net,tr,target]=latentNet(trainData,trainComm,commorbidityNames,trueVar,falseVar,show)
+function [net,tr,target,perTrue]=latentNet(trainData,trainComm,commorbidityNames,trueVar,falseVar,show,chckLatentDistFlag)
 %
 %
-% Returns a trained NN, training performance metrics, and generated target 
-% values from commorbidity scores 
+% Returns a trained NN, training performance metrics, and generated target
+% values from commorbidity scores
 
+net=[];
+tr=[];
+target=[];
+if(isempty(chckLatentDistFlag))
+    %Set default to false
+    chckLatentDistFlag=0;
+end
 %General parameters
 testN=10;        %Number of initialization runs in order to avoid local minimums due to training
 net_arch=[50]; %Network layer architectures (number of neurons in each layer)
-
-
 Ntrue=length(trueVar);
 Nfalse=length(falseVar);
 Nvar=Ntrue+Nfalse;
@@ -24,20 +29,19 @@ for n=1:Ntrue
     missing_ind=find(isnan(trainComm(:,indTrue))==1);
     if(~isempty(missing_ind))
         missMODE=mode(trainComm(:,indTrue));
-        if(isnan(missMODE))
-            error([trueVar{n} ' : commorbidity value do not have enough points']) 
+        if(isnan(missMODE) && ~chckLatentDistFlag)
+            error([trueVar{n} ' : commorbidity value do not have enough points'])
         end
         trainComm(missing_ind,indTrue)=missMODE;
     end
     target=target+trainComm(:,indTrue);
 end
 
-%If target is has less than 20%, issue a sparsity error 
-per=sum(target)/length(target);
-if(per<0.2 || per> 0.8)
-   error(['Target is sparse: ' num2str(round(per*100)) ' % is true'])
-end
-
+%If target is has less than 20%, issue a sparsity error
+per=sum(target>0)/length(target);
+%If chckLatentDistFlag is true, only check the distribution of the classes and nothing
+%else
+perTrue=per;
 %Normalize target by the maximum number of variables
 %and so that the target is logsig (0-1) within x=0-20 (with x= 10 -> y= 0.5)
 scale=20;
@@ -46,29 +50,35 @@ bx=scale/2;
 target=1./(1+exp(-target+bx));
 
 
-%Train NN based on target
-NET=cell(testN,1);
-TR=cell(testN,1);
-score=zeros(testN,1);
-parfor i=1:testN
-    tmp_net= fitnet(net_arch);
-    tmp_net= configure(tmp_net,trainData',target');
-    tmp_net.inputs{1}.processFcns={'mapstd','mapminmax'};
-    %tmp_net.layers{end}.transferFcn = 'logsig';
-    tmp_net.trainParam.showWindow = false;
-    tmp_net.trainParam.showCommandLine = false;
-    [tmp_net,tmp_tr] = train(tmp_net,trainData',target');
-    tmp_tr.best_tperf
-    NET{i}=tmp_net;
-    TR{i}=tmp_tr;
-    scores(i)=tmp_tr.best_tperf;
-end
-[~,best]=min(scores);
-net=NET{best};
-tr=TR{best};
-
-if(show)
-    plotperf(tr)
-    yhat = net(trainData');
-    plotregression(target,yhat);
+if(~chckLatentDistFlag)
+    if(per<0.2 || per> 0.8)
+        error(['Target is sparse: ' num2str(round(per*100)) ' % is true'])
+    end
+    
+    %Train NN based on target
+    NET=cell(testN,1);
+    TR=cell(testN,1);
+    score=zeros(testN,1);
+    parfor i=1:testN
+        tmp_net= fitnet(net_arch);
+        tmp_net= configure(tmp_net,trainData',target');
+        tmp_net.inputs{1}.processFcns={'mapstd','mapminmax'};
+        %tmp_net.layers{end}.transferFcn = 'logsig';
+        tmp_net.trainParam.showWindow = false;
+        tmp_net.trainParam.showCommandLine = false;
+        [tmp_net,tmp_tr] = train(tmp_net,trainData',target');
+        tmp_tr.best_tperf
+        NET{i}=tmp_net;
+        TR{i}=tmp_tr;
+        scores(i)=tmp_tr.best_tperf;
+    end
+    [~,best]=min(scores);
+    net=NET{best};
+    tr=TR{best};
+    
+    if(show)
+        plotperf(tr)
+        yhat = net(trainData');
+        plotregression(target,yhat);
+    end
 end

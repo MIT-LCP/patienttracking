@@ -1,4 +1,4 @@
-function [net,tr,target]=latentO2Delivery(trainData,trainComm,commorbidityNames,show)
+function [net,tr,target,perTrue]=latentO2Delivery(trainData,trainComm,commorbidityNames,show,chckLatentDistFlag)
 %
 %
 % Returns a trained NN, training performance metrics, and generated target 
@@ -18,4 +18,4 @@ trueVar={'CONGESTIVE_HEART_FAILURE',...
     'RENAL_FAILURE'};
 
 falseVar={};
-[net,tr,target]=latentNet(trainData,trainComm,commorbidityNames,trueVar,falseVar,show);
+[net,tr,target,perTrue]=latentNet(trainData,trainComm,commorbidityNames,trueVar,falseVar,show,chckLatentDistFlag);

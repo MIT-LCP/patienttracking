@@ -1,4 +1,4 @@
-function [net,tr,target]=latentO2Demmand(trainData,trainComm,commorbidityNames,show)
+function [net,tr,target,perTrue]=latentO2Demmand(trainData,trainComm,commorbidityNames,show,chckLatentDistFlag)
 %
 %
 % Returns a trained NN, training performance metrics, and generated target 
@@ -17,4 +17,4 @@ falseVar={'OBESITY',...
          'OLD_AGE',...
          'PERIPHERAL_VASCULAR'};
 
-[net,tr,target]=latentNet(trainData,trainComm,commorbidityNames,trueVar,falseVar,show);
+[net,tr,target,perTrue]=latentNet(trainData,trainComm,commorbidityNames,trueVar,falseVar,show,chckLatentDistFlag);

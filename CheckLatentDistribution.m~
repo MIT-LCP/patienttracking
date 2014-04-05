@@ -3,13 +3,23 @@
 %
 %latentO2Demmand
 %latentO2Utilization
+%latentO2Delivery
+%
+% No neural network training is done and percentage is based on entire
+% cohort.
 %
 clear all;close all;clc
 
+%Load feature data
+[Npid,lact_db,target,commorbidityVal,commorbidityNames]=loadFeatures();
 
-[Npid,lact_db,target,commorbidityVal,commorbidityNames]=loadNNFeatures();
+%Get percentagges
+chckLatentDistFlag=1;
+[~,~,target02Demand,per02Demand]=latentO2Demmand(lact_db,commorbidityVal,commorbidityNames,[],chckLatentDistFlag);
+[~,~,target02Utilization,per02Utilization]=latentO2Utilization(lact_db,commorbidityVal,commorbidityNames,[],chckLatentDistFlag);
+[~,~,target02Delivery,per02Delivery]=latentO2Delivery(lact_db,commorbidityVal,commorbidityNames,[],chckLatentDistFlag);
 
-
-[netO2Demmand,trO2Demmand,targetO2Demmand]=latentO2Demmand(trainData,trainComm,commorbidityNames,netShow);
-[netO2Utilization,trO2Utilization,targetO2Utilization]=latentO2Utilization(trainData,trainComm,commorbidityNames,netShow);
-[netO2Delivery,trO2Delivery,targetO2Delivery]=latentO2Delivery(trainData,trainComm,commorbidityNames,netShow);
+stem([per02Demand per02Utilization per02Delivery])
+title('Latent Variable Distribution')
+ylabel('Percent of True Ca
+figure
