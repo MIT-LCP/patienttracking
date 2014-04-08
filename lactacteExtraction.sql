@@ -236,6 +236,8 @@ ChartedParams as (
                 'Hb'                              
             when c.itemid in (778) then
                 'PaCO2'
+            when c.itemid in (51,455) then
+                'SYS ABP' -- Invasive/noninvasive BP                
             end category,
          case
             when c.itemid in (678, 679) then
@@ -248,15 +250,17 @@ ChartedParams as (
     from cohort s,
          mimic2v26.chartevents c 
    where c.icustay_id = s.icustay_id
-     and c.itemid in (
-         211,
-         52, 6702,
-         581,
-         676, 677, 678, 679,
-         814,
-         778
-         )
+     and c.itemid in (211, 52, 6702, 581, 676, 677, 678, 679, 814, 778, 51, 455)
      and c.value1num is not null
+     
+     UNION
+     
+    select s.subject_id, s.hadm_id, s.icustay_id, itemid, charttime, 'DIAS ABP' as category, c.value2num as valuenum
+    from cohort s,
+         mimic2v26.chartevents c 
+   where c.icustay_id = s.icustay_id
+     and c.itemid in (51, 455)
+     and c.value2num is not null     
 )
 --select * from ChartedParams;
 -- White blood cell count, respiration rate, and temperature to the time series data?
@@ -396,21 +400,21 @@ LactateData as (
       or c.category like '%SURVIVAL%'
       or c.category like '%LOS%'
 )
--- Select out the per-apatient attributed that are important
-select distinct subject_id, icustay_admit_age, gender, icustay_first_careunit, 
-                codes, IABP, CABG, IABP_DISCHARGE, CABG_DISCHARGE, LVAD, RVAD, ECMO,
-                infection, organfailure,
-                congestive_heart_failure, cardiac_arrhythmias, valvular_disease,      -- EH Scores
-                aids, alcohol_abuse, blood_loss_anemia, chronic_pulmonary,
-                coagulopathy, deficiency_anemias, depression,
-                diabetes_complicated, diabetes_uncomplicated, drug_abuse,
-                fluid_electrolyte, hypertension, hypothyroidism, liver_disease,
-                lymphoma, metastatic_cancer, obesity, other_neurological,
-                paralysis, peptic_ulcer, peripheral_vascular, psychoses,
-                pulmonary_circulation, renal_failure, rheumatoid_arthritis,
-                solid_tumor, weight_loss                   
-  from LactateData 
-  order by subject_id;
+---- Select out the per-apatient attributed that are important
+--select distinct subject_id, icustay_admit_age, gender, icustay_first_careunit, 
+--                codes, IABP, CABG, IABP_DISCHARGE, CABG_DISCHARGE, LVAD, RVAD, ECMO,
+--                infection, organfailure,
+--                congestive_heart_failure, cardiac_arrhythmias, valvular_disease,      -- EH Scores
+--                aids, alcohol_abuse, blood_loss_anemia, chronic_pulmonary,
+--                coagulopathy, deficiency_anemias, depression,
+--                diabetes_complicated, diabetes_uncomplicated, drug_abuse,
+--                fluid_electrolyte, hypertension, hypothyroidism, liver_disease,
+--                lymphoma, metastatic_cancer, obesity, other_neurological,
+--                paralysis, peptic_ulcer, peripheral_vascular, psychoses,
+--                pulmonary_circulation, renal_failure, rheumatoid_arthritis,
+--                solid_tumor, weight_loss                   
+--  from LactateData 
+--  order by subject_id;
 
 --,
 -- Final selection formats the data into a time series format.
