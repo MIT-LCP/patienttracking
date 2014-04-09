@@ -6,6 +6,10 @@ In this query we are using only patients whose first ICU stay service is
 of type CSRU, and who has at least 5 lactate measurements. The
 variables being extracted are HR, MAP, urine output, and lactate.
 */
+
+--create table mghassem.lactateTimeData as
+CREATE MATERIALIZED VIEW mghassem.lactateTimeData AS 
+
 -- ICD9 codes
 with CODEDATA AS (
  SELECT C.SUBJECT_ID, C.HADM_ID, LISTAGG(C.CODE, ';') WITHIN GROUP (ORDER BY C.SEQUENCE) AS CODES
@@ -400,6 +404,7 @@ LactateData as (
       or c.category like '%SURVIVAL%'
       or c.category like '%LOS%'
 )
+
 ---- Select out the per-apatient attributed that are important
 --select distinct subject_id, icustay_admit_age, gender, icustay_first_careunit, 
 --                codes, IABP, CABG, IABP_DISCHARGE, CABG_DISCHARGE, LVAD, RVAD, ECMO,
