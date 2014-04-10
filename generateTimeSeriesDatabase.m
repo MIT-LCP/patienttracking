@@ -7,7 +7,7 @@ clear all;close all;clc
 file_suffix=['realTime-lactate-interpolated-dataset-'];
 
 %Smooothing window size (in hours) for poor brazilan man wavelets approach
-AVE_WIN=[0 3 5 13 23];
+AVE_WIN=[13 23];
 NAVE=length(AVE_WIN);
 
 removeFlag=0; %Do not remove CABG, LVAD, and RAVD patients
@@ -24,19 +24,20 @@ M=length(id);
 %Exact label names from the txt files (we only use this for reading ).
 varLabels={'LACTATE','MAP','HR','URINE','WEIGHT',...
     'PRESSOR_TIME_MINUTES','Hb','HbMassBlood','MECH_VENT_FLAG',...
-    'PaCO2','RESP','TEMPERATURE','WBC'};
+    'PaCO2','RESP','TEMPERATURE','WBC','DIAS_ABP','SYS_ABP'};
 
 %Used in eval loops to decrease amount of boilerplate code
 %There will be an interpolated  time series for each raw measurement in outVarName
-outVarName={'lact','map','hr','urine','weight','pressor','Hb','HbMassBlood','mech_vent','PaCO2','resp','temp','wbc'};
+outVarName={'lact','map','hr','urine','weight','pressor','Hb','HbMassBlood', ...
+    'mech_vent','PaCO2','resp','temp','wbc','dias','sys'};
 NvarName=length(outVarName);
 
 %dbOutVarName is similar to outVarName, but includes time an augmented sets
 %of timeseries directly derived from outVarName that will be included in
 %the final dataset.
 dbOutVarName={'lact','map','hr','urine','weight','pressor','Hb','HbMassBlood','mech_vent',...
-    'PaCO2','resp','temp','wbc','ageNormalized_hr','cardiacOutput','envelope_map','envelope_hr',...
-    'envelope_urine','envelope_resp','envelope_temp','envelope_cardiacOutput'};
+    'PaCO2','resp','temp','wbc','dias','sys','ageNormalized_hr','cardiacOutput','envelope_map','envelope_hr',...
+    'envelope_urine','envelope_resp','envelope_temp','envelope_cardiacOutput','envelope_dias','envelope_sys'};
 NdbOutVarName=length(dbOutVarName);
 
 %The dataset used for k-means will contain following features described
@@ -91,7 +92,7 @@ for nave=1:NAVE
         tm=(tm-tm(1)).*24;
         category=CATEGORY(pid_ind(1):pid_ind(end));
         val=VAL(pid_ind(1):pid_ind(end));
-        [lact,map,hr,urine,weight,pressor,Hb,HbMassBlood,mech_vent,PaCO2,resp,temp,wbc]=...
+        [lact,map,hr,urine,weight,pressor,Hb,HbMassBlood,mech_vent,PaCO2,resp,temp,wbc,dias,sys]=...
             getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show,average_window,realTimeFlag);
         
         if(length(lact(:,1))==1 && isnan(lact(1,1)))
@@ -216,6 +217,19 @@ for nave=1:NAVE
         else
             envelope_cardiacOutput=[NaN NaN];
         end
+        
+        if(~isempty(dias))
+            envelope_dias=[dias(:,1) abs(hilbert(dias(:,2)))];
+        else
+            envelope_dias=[NaN NaN];
+        end
+        
+        if(~isempty(sys))
+            envelope_sys=[sys(:,1) abs(hilbert(sys(:,2)))];
+        else
+            envelope_sys=[NaN NaN];
+        end
+        
         %%% End of augementing time series %%%%
         
         

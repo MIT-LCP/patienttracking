@@ -10,6 +10,8 @@ th=0.005; %Use th% threshold on *each* tail
 %removal
 LACTATE=[]; %ignored in outlier removal
 MAP=[];
+DIAS_ABP=[];
+SYS_ABP=[];
 HR=[5 300];
 URINE=[0 500];
 WEIGHT=[1 inf];

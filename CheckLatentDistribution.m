@@ -11,7 +11,7 @@
 clear all;close all;clc
 
 %Load feature data
-[Npid,lact_db,target,commorbidityVal,commorbidityNames]=loadFeatures();
+[Npid,lact_db,target,commorbidityVal,commorbidityNames,unique_pid]=loadFeatures();
 
 %Get percentagges
 chckLatentDistFlag=1;

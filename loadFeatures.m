@@ -1,4 +1,4 @@
-function [Npid,lact_db,target,commorbidityVal,commorbidityNames]=loadNNFeatures()
+function [Npid,lact_db,target,commorbidityVal,commorbidityNames,unique_pid]=loadNNFeatures()
 
 %The dataset, lact_db, will contain the features described by the variable
 %'column_names, all measurements are from the interpolated series.

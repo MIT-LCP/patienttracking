@@ -9,9 +9,10 @@ checkLatentDistributionFlag=0;
 
 
 %Load feature database lact_db 
-[Npid,lact_db,target,commorbidityVal,commorbidityNames]=loadNNFeatures();
-
-
+[Npid,lact_db,target,commorbidityVal,commorbidityNames,unique_pid]=loadFeatures();
+Mcol=length(lact_db(1,:));
+Ndb=length(lact_db);
+pid_init=lact_db(:,1);
 
 %Partition the dataset into 3 parts for 3x validation
 %The N-fold validation is done in terms of number of patients, not number
@@ -100,10 +101,11 @@ for n=1:Nfold
     trainComm(del_ind,:)=[];
     
     %Estimate latent variables
-    netShow=0; %displays regression plot of NN on target values
+     netShow=0; %displays regression plot of NN on target values
+    [netO2Delivery,trO2Delivery,targetO2Delivery]=latentO2Delivery(trainData,trainComm,commorbidityNames,netShow);
     [netO2Demmand,trO2Demmand,targetO2Demmand]=latentO2Demmand(trainData,trainComm,commorbidityNames,netShow);
     [netO2Utilization,trO2Utilization,targetO2Utilization]=latentO2Utilization(trainData,trainComm,commorbidityNames,netShow);
-    [netO2Delivery,trO2Delivery,targetO2Delivery]=latentO2Delivery(trainData,trainComm,commorbidityNames,netShow);
+    
 
     %plotperf(trO2Demmand)
     %yhat = netO2Demmand(trainData');

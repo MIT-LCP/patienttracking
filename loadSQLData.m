@@ -39,6 +39,9 @@ if(isempty(series_header))
     category=strrep(category,'"','');
     tm=strrep(tm,'"','');
     
+    %Replace spaces with under score
+    category=strrep(category,' ','_');
+
     %Load meta data
     fid_in=fopen(fname_patient, 'r');
     
