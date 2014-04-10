@@ -9,7 +9,7 @@ checkLatentDistributionFlag=0;
 
 
 %Load feature database lact_db 
-[Npid,lact_db,target,commorbidityVal,commorbidityNames,unique_pid]=loadFeatures();
+[Npid,lact_db,target,commorbidityVal,commorbidityNames,unique_pid,use_col]=loadFeatures();
 Mcol=length(lact_db(1,:));
 Ndb=length(lact_db);
 pid_init=lact_db(:,1);
@@ -101,15 +101,16 @@ for n=1:Nfold
     trainComm(del_ind,:)=[];
     
     %Estimate latent variables
-     netShow=0; %displays regression plot of NN on target values
-    [netO2Delivery,trO2Delivery,targetO2Delivery]=latentO2Delivery(trainData,trainComm,commorbidityNames,netShow);
-    [netO2Demmand,trO2Demmand,targetO2Demmand]=latentO2Demmand(trainData,trainComm,commorbidityNames,netShow);
-    [netO2Utilization,trO2Utilization,targetO2Utilization]=latentO2Utilization(trainData,trainComm,commorbidityNames,netShow);
+    netShow=1; %displays regression plot of NN on target values
+    chckLatentDistFlag=0;
+    [netO2Delivery,trO2Delivery,targetO2Delivery]=latentO2Delivery(trainData,trainComm,commorbidityNames,netShow,chckLatentDistFlag);
+    [netO2Demmand,trO2Demmand,targetO2Demmand]=latentO2Demmand(trainData,trainComm,commorbidityNames,netShow,chckLatentDistFlag);
+    [netO2Utilization,trO2Utilization,targetO2Utilization]=latentO2Utilization(trainData,trainComm,commorbidityNames,netShow,chckLatentDistFlag);
     
 
-    %plotperf(trO2Demmand)
-    %yhat = netO2Demmand(trainData');
-    %plotregression(targetO2Demmand,yhat);
+    plotperf(trO2Delivery)
+    yhat = netO2Delivery(trainData');
+    plotregression(targetO2Delivery,yhat);
     
 %    save temp_nets
 %    

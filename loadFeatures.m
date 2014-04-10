@@ -1,4 +1,4 @@
-function [Npid,lact_db,target,commorbidityVal,commorbidityNames,unique_pid]=loadNNFeatures()
+function [Npid,lact_db,target,commorbidityVal,commorbidityNames,unique_pid,use_col]=loadNNFeatures()
 
 %The dataset, lact_db, will contain the features described by the variable
 %'column_names, all measurements are from the interpolated series.
@@ -44,7 +44,7 @@ end
 
 
 %For now only use these columns (other features will be discarded
-use_col={'map_val','map_dx','map_var','ageNormalized_hr_val','ageNormalized_hr_dx','ageNormalized_hr_var','urine_val','urine_dx',...
+use_col={'pid','tm','map_val','map_dx','map_var','ageNormalized_hr_val','ageNormalized_hr_dx','ageNormalized_hr_var','urine_val','urine_dx',...
     'urine_var','weight_val','weight_dx','pressor_val','cardiacOutput_val','cardiacOutput_dx','cardiacOutput_var'...
     'Hb_val','HbMassBlood_val','PaCO2_val','PaCO2_dx','resp_val','resp_dx','wbc_val','temp_val','temp_dx'};
 
@@ -72,8 +72,9 @@ end
 eval(['lact_db=lact_db_' num2str(smooth_set(1)) ';']) %initialize db
 
 for s=2:Nsmooth
-    %Append all smoothed sets together
-    eval(['tmp_lact_db=lact_db_' num2str(smooth_set(s)) ';'])
+    %Append all smoothed sets together starting with offset that 
+    %ignores the metadata pid and tm (should be the same for all sets)
+    eval(['tmp_lact_db=lact_db_' num2str(smooth_set(s)) '(:,3:end);'])
     lact_db=[lact_db tmp_lact_db];
 end
 
