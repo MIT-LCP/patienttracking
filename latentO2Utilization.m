@@ -8,9 +8,9 @@ function [net,tr,target,perTrue]=latentO2Utilization(trainData,trainComm,commorb
 %demands
 trueVar={'DIABETES_UNCOMPLICATED',...
     'DIABETES_COMPLICATED',...
-    'AIDS'};
+    'AIDS', ...
+    'SEPSIS'};
 
 %NOTE: We cannot use INFECTION because it is all NaNs
-falseVar={};
-targets=[];
+falseVar={'OLD_AGE'};
 [net,tr,target,perTrue]=latentNet(trainData,trainComm,commorbidityNames,trueVar,falseVar,show,chckLatentDistFlag);

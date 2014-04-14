@@ -96,6 +96,6 @@ for n=1:Nvar
         end
         target=target+trainComm(:,indTrue);
     else
-        warning(['Ignoring: Comorbidity not found: ' comVar{n} ' !!']);
+        warning(['Ignoring emptcomorbidity: ' comVar{n}]);
     end
 end
