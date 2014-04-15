@@ -14,7 +14,7 @@ M=length(id);
 outVarName={'lact','map','hr','urine','weight'};
 varLabels={'LACTATE','MAP','HR','URINE','WEIGHT'};
 NvarName=length(outVarName);
-average_window=13; %Define average window length in units of hour for smoothing the interpolated time series
+average_window=3; %Define average window length in units of hour for smoothing the interpolated time series
 %fname=['lactate-kmeans-dataset- ' num2str(average_window) 'hours-smoothed.mat']; %File name that will be created
 
 %The dataset used for k-means will contain following features described
@@ -101,15 +101,20 @@ for m=1:M
     variables={urine, hr, map};
     categories={'URINE', 'HR', 'MAP'};
     
+    %check if more than 6 samples over 2
+    lactSamples=find(ismember(category,{'LACTATE'})==1);
+    lactValues=val(lactSamples);
+    overTwo=find(lactValues >= 2);
+    if length(overTwo) < 6
+        continue;
+    end
+    
+    
     %check if more than 6 lactate measurements
     if sum(ismember(category,{'LACTATE'})) < 6
         continue
     end
-    
-    %looking for patients with infection
-    if commorbidityVal(m,2) > 48
-        infection(m)=1;
-    end
+
     
     try
         %add correlation coeff between lactate and each variable: urine,
@@ -122,7 +127,46 @@ for m=1:M
             if sum(ismember(category,categories(i))) < 6
                 continue
             end
+            
+            if isnan(weight(1,1))==1
+                continue
+            end
 
+            
+            %normalize urine by weight
+            if strcmp(categories(i),'URINE')
+                
+                normalizedUrine=zeros(length(urine(:,2)),2);
+                normalizedUrine(:,1)=urine(:,1);
+                
+                startWeight=weight(1,:);
+                endWeight=weight(end,:);
+                croppedWeight=weight(:,:);
+                croppedWeight(weight(:,1)<urine(1,1)-.01 | weight(:,1) >urine(end,1)+.01,:)=[];
+                
+                if ~isempty(croppedWeight)
+                    offset=floor((croppedWeight(1,1)-urine(1,1))*100);
+                end
+                
+                
+                for j=1:length(urine(:,2))
+                    if urine(j,1) < startWeight(1)
+                        normalizedUrine(i,2)=urine(j,2)/startWeight(2);
+                    elseif urine(j,1) > endWeight(1)
+                        normalizedUrine(j,2)=urine(j,2)/endWeight(2);
+                    else
+                        currentWeight=croppedWeight(j-offset,2);
+                        normalizedUrine(j,2)=urine(j,2)/currentWeight;
+                    end
+                end
+                variable=normalizedUrine;
+            end
+                
+   
+                   
+                    
+            
+            
             %for correlation coefficient need to make sure samples are same length   
             min_x = max(variable(1,1), lact(1,1));
             max_x = min(variable(end,1), lact(end,1));
@@ -136,21 +180,34 @@ for m=1:M
             elseif length(variable(:,2)) > length(newlact(:,2))
                 variable(1:(length(variable(:,2)) - length(newlact(:,2))),:) = [];
             end
+            
+                
+            
+            
+%             %do cross correlation between lactate and current variable
+%             %find the maximum value of correlation and the lag associated with
+%             %it and set to lags_mat and xcorr_mat
+%             [C,LAGS] = xcorr(lact(:,2),variable(:,2));
+%             [max_value, index] = max(abs(C(:)));
+%             lag=LAGS(index);
+%             lags_mat(m,i)=lag;
+%             xcorr_mat(m,i)=C(index);
+            
+            %crop signals so only looking at when lactate >2
+            ind=newlact(:,2)>2;
+            highLact=newlact(ind,2);
+            highVariable=variable(ind,2);
+            
+            
+             %find both pearson and spearman correlation coefficients
+            [r1, p1] = corrcoef([highLact highVariable]);
+            [r2, p2] = corr([highLact highVariable], 'type', 'Spearman');
 
             
-            %do cross correlation between lactate and current variable
-            %find the maximum value of correlation and the lag associated with
-            %it and set to lags_mat and xcorr_mat
-            [C,LAGS] = xcorr(lact(:,2),variable(:,2));
-            [max_value, index] = max(abs(C(:)));
-            lag=LAGS(index);
-            lags_mat(m,i)=lag;
-            xcorr_mat(m,i)=C(index);
-            
-            
-            %find both pearson and spearman correlation coefficients
-            [r1, p1] = corrcoef([newlact(:,2) variable(:,2)]);
-            [r2, p2] = corr([newlact(:,2) variable(:,2)], 'type', 'Spearman');
+%             
+%             %find both pearson and spearman correlation coefficients
+%             [r1, p1] = corrcoef([newlact(:,2) variable(:,2)]);
+%             [r2, p2] = corr([newlact(:,2) variable(:,2)], 'type', 'Spearman');
             
             % Save the p-value...
             p_mat_pear(m, i) = p1(1, 2);
@@ -158,10 +215,10 @@ for m=1:M
 
             % Save the correlation coefficient IF the p value is less than
             % 0.05 and the max lactate level is higher than 4
-            if p1(1, 2) < 0.05 && max(newlact(:,2)) >=4
+            if p1(1, 2) < 0.05 %&& max(newlact(:,2))>4
                 corr_mat_pear(m,i) = r1(1, 2);
             end
-            if p2(1, 2) < 0.05 && max(newlact(:,2)) >=4
+            if p2(1, 2) < 0.05 %&& max(newlact(:,2))>4
                 corr_mat_spear(m,i) = r2(1, 2);
                 
                 
@@ -173,16 +230,15 @@ for m=1:M
                 %end
             end            
         end
-    catch 
-         disp('OMG Ponies!');   
+    catch
+        disp('OMG Ponies!');
     end
     
     
     
 end
 
-columns={'urine','hr','map'};
-save ('correlation-13hr.mat', 'corr_mat_pear','corr_mat_spear','p_mat_pear','p_mat_spear','lags_mat','xcorr_mat','columns')
+
 
 
 
