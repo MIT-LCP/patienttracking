@@ -111,8 +111,9 @@ for n=1:Nfold
     plotperf(trO2Delivery)
     yhat = netO2Delivery(trainData');
     plotregression(targetO2Delivery,yhat);
-    
-%    save temp_nets
+    deb=1;
+    save temp_nets
+    exit
 %    
 %     %Train Neural Net
 %     net = fitnet([50 10 5]);
