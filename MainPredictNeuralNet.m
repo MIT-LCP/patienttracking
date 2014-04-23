@@ -113,6 +113,9 @@ for n=1:Nfold
     plotregression(targetO2Delivery,yhat);
     deb=1;
     save temp_nets
+    
+    
+    [net,tr,target]=netTrain(trainData,trainComm,commorbidityNames,netShow,chckLatentDistFlag);
     exit
 %    
 %     %Train Neural Net

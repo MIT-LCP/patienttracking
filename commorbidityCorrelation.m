@@ -40,7 +40,7 @@ for i=1:length(rm_ind)
 end
 commorbidityVal(rm_tmp,:)=[];
 
-%for each commorbidity, find correlation and rank sum between commorbidity and lactate max, mean, var 
+%for each commorbidity, find correlation and rank sum between commorbidity and lactate max, mean, var
 for m=2:M
     if (sum(commorbidityVal(:,m)))
         [r1,trash,p1,trash]=pointbiserial(commorbidityVal(:,m),data(:,1));
@@ -51,16 +51,26 @@ for m=2:M
         trueInd=find(commorbidityVal(:,m)==1);
         falseInd=find(commorbidityVal(:,m)==0);
         
-        rksum(m,1) = RANKSUM(data(trueInd,1),data(falseInd,1));
-        rksum(m,2) = RANKSUM(data(trueInd,2),data(falseInd,2));
-        rksum(m,3) = RANKSUM(data(trueInd,3),data(falseInd,3));
+        rksum(m,1) = ranksum(data(trueInd,1),data(falseInd,1));
+        rksum(m,2) = ranksum(data(trueInd,2),data(falseInd,2));
+        rksum(m,3) = ranksum(data(trueInd,3),data(falseInd,3));
         
         %create scatter plot for significant commorbidity ranksum
         if(min(rksum(m,:)<0.05))
             figure
-            scatter(data(trueInd,1),data(trueInd,2),'LineWidth',2)
-            hold on;grid on
-            scatter(data(falseInd,1),data(falseInd,2),'rx','LineWidth',2)
+            subplot(211)
+            D=[data(trueInd,1);data(falseInd,1)];
+            Ntrue=length(data(trueInd,1));
+            G=zeros(size(D));
+            G(Ntrue+1:end)=1;
+            boxplot(D,G)
+            
+            subplot(212)
+            D=[data(trueInd,1);data(falseInd,2)];
+            Ntrue=length(data(trueInd,2));
+            G=zeros(size(D));
+            G(Ntrue+1:end)=1;
+            boxplot(D,G)
             title(commorbidityNames(m))
         end
         
