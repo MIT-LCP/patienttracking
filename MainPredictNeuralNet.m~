@@ -115,12 +115,11 @@ load temp_nets
 O2Delivery = netO2Delivery(trainData')';
 O2Demmand = netO2Demmand(trainData')';
 O2Utilization = netO2Utilization(trainData')';
-useLatent=0;
+
 
 %Loop through different NN structures
 %Trading off between complexity vs over-fitting
-net_dim={[10],...
-    [50],...
+net_dim={[50],...
     [100],...
     [150],...
     [200],...
@@ -148,9 +147,9 @@ for ndim=1:Nnet_dim
     NET=cell(testN,1);
     TR=cell(testN,1);
     scores=zeros(testN,1)+NaN;
-    for i=1:testN
+    parfor i=1:testN
         [tmp_net,tmp_rm_ind,tmp_tr]=lactateNN(trainData,use_col,O2Delivery,...
-            O2Demmand,O2Utilization,trainTarget,netShow,net_dim{ndim},useLatent);
+            O2Demmand,O2Utilization,trainTarget,netShow,net_dim{ndim});
         NET{i}=tmp_net;
         TR{i}=tmp_tr;
         scores(i)=tmp_tr.best_tperf;
@@ -167,7 +166,7 @@ for ndim=1:Nnet_dim
     NET_0{ndim}=net;
     TR_0{ndim}=tr;
     scores_0(ndim)=scores(best);
-    save temp_NN_cache
+    
 end
 
 %Find best overall structure
@@ -177,7 +176,7 @@ tr=TR_0{best};
 
 
 display('***Done training NNs...')
-yhat=lactateNNSimulate(trainData,use_col,O2Delivery,O2Demmand,O2Utilization,net,useLatent);
+yhat=lactateNNSimulate(trainData,use_col,O2Delivery,O2Demmand,O2Utilization,net);
 subplot(212)
 plotregression(trainTarget,yhat);
 

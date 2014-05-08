@@ -1,4 +1,4 @@
-function [yhat]=lactateNNSimulate(trainData,use_col,O2Delivery,O2Demmand,O2Utilization,net)
+function [yhat]=lactateNNSimulate(trainData,use_col,O2Delivery,O2Demmand,O2Utilization,net,useLatent)
    
 %Define which input variables to use, in addtion to the train02* ones
 %This list will be expande to 5x because of each waveform being smoothed
@@ -43,9 +43,10 @@ if(~isempty(rm_ind))
     trainData(:,rm_ind)=[];
 end
 
-
+if(useLatent)
 %Append Latent variable estimates to training data
 trainData=[trainData O2Delivery O2Demmand O2Utilization];
+end
 
 %Run network
 yhat = net(trainData');

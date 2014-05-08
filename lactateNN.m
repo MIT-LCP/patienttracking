@@ -1,4 +1,4 @@
-function [net,rm_ind]=lactateNN(trainData,use_col,O2Delivery,O2Demmand,O2Utilization,trainTarget,netShow)
+function [net,rm_ind,tr]=lactateNN(trainData,use_col,O2Delivery,O2Demmand,O2Utilization,trainTarget,netShow,netDim,useLatent)
 
    
 %Define which input variables to use, in addtion to the train02* ones
@@ -11,10 +11,10 @@ input_names={'map_val','map_dx','map_var','ageNormalized_hr_val','ageNormalized_
              'temp_val','temp_dx'}; %Got 2.28 performance
 
          
-input_names={'map_val','map_dx','ageNormalized_hr_val','ageNormalized_hr_dx',...
-             'urine_val','urine_dx','weight_val','weight_dx','cardiacOutput_val',...
-             'cardiacOutput_dx','Hb_val','HbMassBlood_val','PaCO2_val','PaCO2_dx',...
-             'resp_val','resp_dx','wbc_val','temp_val','temp_dx'};
+% input_names={'map_val','map_dx','ageNormalized_hr_val','ageNormalized_hr_dx',...
+%              'urine_val','urine_dx','weight_val','weight_dx','cardiacOutput_val',...
+%              'cardiacOutput_dx','Hb_val','HbMassBlood_val','PaCO2_val','PaCO2_dx',...
+%              'resp_val','resp_dx','wbc_val','temp_val','temp_dx'}; %Got ~ 8 performance
 
 %If we assume the first two columns are pid, and tm, 
 %dividing the size of trainData by M give us the number of 
@@ -22,6 +22,8 @@ input_names={'map_val','map_dx','ageNormalized_hr_val','ageNormalized_hr_dx',...
 %the cell array 'use_col' only contain labels for the first
 %trend condition (baseline), so we need to expand the indices
 %to include the columns for each of the other trend features
+
+   
 M=length(use_col);
 feature_offset=2;
 [~,L]=size(trainData);
@@ -42,17 +44,23 @@ if(~isempty(rm_ind))
     trainData(:,rm_ind)=[];
 end
 
+if(useLatent)
+    %Append Latent variable estimates to training data
+    trainData=[trainData O2Delivery O2Demmand O2Utilization];
+end
 
-%Append Latent variable estimates to training data
-trainData=[trainData O2Delivery O2Demmand O2Utilization];
-
+%Define Neural Network Structure
+%net = fitnet([30 10]);
+net = fitnet(netDim);
 
 %Train Neural Net
-net = fitnet([50 10 5]);
 net = configure(net,trainData',trainTarget');
 net.inputs{1}.processFcns={'mapstd','mapminmax'};
+net.trainParam.showWindow = false;
+net.trainParam.showCommandLine = false;
+        
 [net,tr] = train(net,trainData',trainTarget');
-nntraintool
+%nntraintool
 
 
 % %Test Neural Net
