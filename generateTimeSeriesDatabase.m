@@ -4,13 +4,13 @@ clear all;close all;clc
 
 %Suffix for the files that will be generated (filter length will be
 %appended later )
-file_suffix=['realTime-lactate-interpolated-dataset-'];
+file_suffix=['CABG-realTime-lactate-interpolated-dataset-'];
 
 %Smooothing window size (in hours) for poor brazilan man wavelets approach
 AVE_WIN=[0 3 5 13 23];
 NAVE=length(AVE_WIN);
 
-removeFlag=0; %Do not remove CABG, LVAD, and RAVD patients
+removeFlag=1; %Do not remove non-CABG, LVAD, and RAVD patients
 realTimeFlag=1; % 0 -> FILTFILT, 1 -> FILTER
 [id,pid,CATEGORY,VAL,TM,AGE,commorbidityVal,commorbidityNames] = loadSQLData([],[],removeFlag);
 AGE=double(AGE);
