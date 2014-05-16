@@ -1,4 +1,4 @@
-function varargout=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show,average_window,realTimeFlag)
+function [lactate_raw,varargout]=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarName,show,average_window,realTimeFlag)
 %
 % waveforms= getInterpolatedWaveforms(varLabels,category)
 %
@@ -12,7 +12,8 @@ function varargout=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarN
 %
 % Ts 1x1 sampling interval (in hours) from which to interpolate data
 %
-% outVarName Nx1 cell array for the names of the new interpolated data
+% outVarName N+1x1 cell array for the names of the new interpolated data
+% First column is the raw lactate values
 %
 % Output is multiple variables, one for each element of varLabels see
 % example below:
@@ -22,6 +23,7 @@ function varargout=getInterpolatedWaveforms(varLabels,category,tm,val,Ts,outVarN
 %[lact,map,hr,urine]=getInterpolatedWaveforms(varLabels,category,Ts,outVarName);
 
 NvarName=length(varLabels);
+lactate_raw=[];
 if(isempty(realTimeFlag))
     %Default =0 will use FILFILT for all filtering operations to have 0
     %phase
@@ -68,6 +70,9 @@ for n=1:NvarName
     [Nx,~]=size(x);
     if(show)
         xraw=x;
+    end
+    if(strcmp(varLabels{n},'LACTATE'))
+        lactate_raw=x; 
     end
     
     if(Nx>1)
@@ -153,6 +158,6 @@ for n=1:NvarName
         ylabel('Measurement Values')
     end
 end
-for n=1:nargout
+for n=1:nargout-1
     eval(['varargout{n}=' outVarName{n} ';'])
 end
